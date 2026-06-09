@@ -1,0 +1,6 @@
+{
+  "name": "LLM Dataset Generator",
+  "description": "Searches the web for any topic and automatically synthesizes high-quality, formatted instruction-tuning datasets (JSON, JSONL, CSV) for training custom large language models.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
