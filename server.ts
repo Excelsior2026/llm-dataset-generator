@@ -1,12 +1,13 @@
-/**
+/*
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import express, { Request, Response } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
+import { withRetry, createTimeoutPromise, logger } from "./src/utils/index";
 
 dotenv.config();
 
@@ -14,6 +15,28 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json({ limit: "50mb" }));
+
+// Request logging middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  logger.info(`${req.method} ${req.path}`);
+  next();
+});
+
+// Error handling middleware
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  if (!err) return next();
+
+  logger.error(`Error in ${req.method} ${req.path}:`, err);
+
+  if (err instanceof Error && err.message.includes("GEMINI_API_KEY")) {
+    res.status(400).json({ error: err.message });
+    return;
+  }
+
+  res.status(500).json({
+    error: "Internal server error during synthesis pipeline"
+  });
+});
 
 // Lazy initializer for Google GenAI to handle missing keys gracefully on startup.
 function getGeminiClient(): GoogleGenAI {
@@ -31,104 +54,7 @@ function getGeminiClient(): GoogleGenAI {
   });
 }
 
-// Helpers for schema mapping based on chosen format
-function getSchemaForFormat(format: string) {
-  if (format === "alpaca") {
-    return {
-      type: Type.OBJECT,
-      properties: {
-        items: {
-          type: Type.ARRAY,
-          description: "List of synthesized Alpaca instruction items",
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              instruction: { type: Type.STRING, description: "The prompt or instruction for the model" },
-              input: { type: Type.STRING, description: "Optional background, context, or code scaffold for the instruction. Leave empty if a standalone instruction." },
-              output: { type: Type.STRING, description: "Detailed, high-quality response/completion" },
-              topic: { type: Type.STRING, description: "The subtopic or category this instruction falls under" }
-            },
-            required: ["instruction", "input", "output", "topic"]
-          }
-        }
-      },
-      required: ["items"]
-    };
-  } else if (format === "sharegpt") {
-    return {
-      type: Type.OBJECT,
-      properties: {
-        items: {
-          type: Type.ARRAY,
-          description: "List of multi-turn conversation sessions",
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              topic: { type: Type.STRING, description: "The subtopic or category this conversation models" },
-              messages: {
-                type: Type.ARRAY,
-                description: "Sequential list of conversation dialog turns",
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    role: { type: Type.STRING, description: "Sender role: system, user, or assistant" },
-                    content: { type: Type.STRING, description: "The spoken or thought response of the character" }
-                  },
-                  required: ["role", "content"]
-                }
-              }
-            },
-            required: ["topic", "messages"]
-          }
-        }
-      },
-      required: ["items"]
-    };
-  } else if (format === "qa") {
-    return {
-      type: Type.OBJECT,
-      properties: {
-        items: {
-          type: Type.ARRAY,
-          description: "List of question and answer training pairs",
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              question: { type: Type.STRING, description: "A highly specific, direct educational or technical question" },
-              answer: { type: Type.STRING, description: "A detailed, structured and expert educational response" },
-              topic: { type: Type.STRING, description: "The subtopic or category this question falls under" }
-            },
-            required: ["question", "answer", "topic"]
-          }
-        }
-      },
-      required: ["items"]
-    };
-  } else {
-    // raw
-    return {
-      type: Type.OBJECT,
-      properties: {
-        items: {
-          type: Type.ARRAY,
-          description: "List of pre-training textbook document chunks",
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING, description: "The title or section header of the text block" },
-              text: { type: Type.STRING, description: "Dense, encyclopedia-like educational information, prose, or code, formatted in detail" },
-              topic: { type: Type.STRING, description: "The subtopic or category this chunk target" }
-            },
-            required: ["title", "text", "topic"]
-          }
-        }
-      },
-      required: ["items"]
-    };
-  }
-}
-
-// Clean helper to remove JSON format backticks if the model ignores responseMimeType occasionally
+// Clean JSON response helper
 function cleanJsonString(str: string): string {
   let cleaned = str.trim();
   if (cleaned.startsWith("```json")) {
@@ -140,6 +66,70 @@ function cleanJsonString(str: string): string {
     cleaned = cleaned.substring(0, cleaned.length - 3);
   }
   return cleaned.trim();
+}
+
+// Optimized format mapping function to reduce duplication
+function createItemMapper(format: string) {
+  return (item: any, id: string, topic: string) => {
+    const itemTopic = item.topic || "General Concepts";
+    
+    switch (format) {
+      case "alpaca":
+        return {
+          id,
+          format: "alpaca",
+          topic: itemTopic,
+          alpaca: {
+            instruction: item.instruction || "No instruction provided",
+            input: item.input || "",
+            output: item.output || ""
+          }
+        };
+      case "sharegpt":
+        return {
+          id,
+          format: "sharegpt",
+          topic: itemTopic,
+          sharegpt: {
+            messages: item.messages || [
+              { role: "system", content: "You are an expert assistant." },
+              { role: "user", content: "Tell me about this topic." },
+              { role: "assistant", content: "Here is the key info." }
+            ]
+          }
+        };
+      case "qa":
+        return {
+          id,
+          format: "qa",
+          topic: itemTopic,
+          qa: {
+            question: item.question || "What is this topic?",
+            answer: item.answer || "Detail answer of this topic"
+          }
+        };
+      case "raw":
+        return {
+          id,
+          format: "raw",
+          topic: itemTopic,
+          raw: {
+            title: item.title || "Section Overview",
+            text: item.text || "Detailed text contents"
+          }
+        };
+      default:
+        return {
+          id,
+          format: "raw",
+          topic: itemTopic,
+          raw: {
+            title: "Unknown Format",
+            text: "Data in unknown format"
+          }
+        };
+    }
+  };
 }
 
 /**
@@ -157,7 +147,7 @@ app.post("/api/generate", async (req: Request, res: Response) => {
     const ai = getGeminiClient();
 
     // Step 1: Perform Google Search Grounding to research the topic
-    console.log(`Researching topic: "${topic}" via Google Search Grounding...`);
+    logger.info(`Researching topic: "${topic}" via Google Search Grounding...`);
     const searchResponse = await ai.models.generateContent({
       model: "gemini-3.5-flash",
       contents: `You are an elite research engine. Research the following topic exhaustively using Google Search: "${topic}".
@@ -207,17 +197,16 @@ Additionally, output a list of 6 to 8 subtopics. You MUST format this subtopics 
       ];
     }
 
-    console.log(`Discovered Subtopics:`, subtopics);
+    logger.info(`Discovered Subtopics: ${subtopics}`);
 
-    // Step 2: Batch Generation of dataset items
-    // We break them down into sizes of 5 or 6 per batch to guarantee length and details
+    // Step 2: Batch Generation of dataset items with retry logic
     const targetSize = Math.max(1, Math.min(30, size)); // Protect limits (max 30)
     const batchSize = 5;
     const numBatches = Math.ceil(targetSize / batchSize);
-    const schema = getSchemaForFormat(format);
+    
+    logger.info(`Synthesizing dataset of ${targetSize} items in ${numBatches} parallel batches...`);
 
-    console.log(`Synthesizing dataset of ${targetSize} items in ${numBatches} parallel batches...`);
-
+    // Create batch promises with timeout protection
     const batchPromises = Array.from({ length: numBatches }).map(async (_, idx) => {
       const itemsInThisBatch = Math.min(batchSize, targetSize - idx * batchSize);
       
@@ -243,7 +232,7 @@ Your output must comply strictly with these criteria:
 
       const prompt = `Synthesize exactly ${itemsInThisBatch} training dataset items. Refuse placeholder or truncated values. Output absolutely valid JSON.`;
 
-      try {
+      const generateBatch = async () => {
         const generation = await ai.models.generateContent({
           model: "gemini-3.5-flash",
           contents: prompt,
@@ -251,74 +240,46 @@ Your output must comply strictly with these criteria:
             systemInstruction: systemInstruction,
             temperature: temperature,
             responseMimeType: "application/json",
-            responseSchema: schema
+            responseSchema: getSchemaForFormat(format)
           }
         });
 
         const rawJsonText = cleanJsonString(generation.text || "{}");
         const parsed = JSON.parse(rawJsonText);
         return parsed.items || [];
-      } catch (err) {
-        console.error(`Error in batch ${idx}:`, err);
-        return [];
+      };
+
+      // Apply retry logic with timeout protection
+      return createTimeoutPromise(
+        withRetry(generateBatch, 2, 500),
+        60000,
+        `Batch ${idx} generation timed out`
+      );
+    });
+
+    // Execute all batches in parallel with error isolation
+    const results = await Promise.allSettled(batchPromises);
+    const rawItems: any[] = [];
+
+    // Collect successful results and log failures
+    results.forEach((result, idx) => {
+      if (result.status === 'fulfilled') {
+        rawItems.push(...result.value);
+      } else {
+        logger.error(`Batch ${idx} failed:`, result.reason);
       }
     });
 
-    const results = await Promise.all(batchPromises);
-    const rawItems = results.flat();
+    if (rawItems.length === 0) {
+      throw new Error("All batch generations failed. Unable to create dataset.");
+    }
 
-    // Map items to unique identifiers and the exact types format
+    // Step 3: Map items to unique identifiers and format types
+    const mapItem = createItemMapper(format);
     let idCounter = 1;
     const finalItems = rawItems.map((item: any) => {
       const id = `item-${Date.now()}-${idCounter++}`;
-      const itemTopic = item.topic || "General Concepts";
-      
-      if (format === "alpaca") {
-        return {
-          id,
-          format: "alpaca",
-          topic: itemTopic,
-          alpaca: {
-            instruction: item.instruction || "No instruction provided",
-            input: item.input || "",
-            output: item.output || ""
-          }
-        };
-      } else if (format === "sharegpt") {
-        return {
-          id,
-          format: "sharegpt",
-          topic: itemTopic,
-          sharegpt: {
-            messages: item.messages || [
-              { role: "system", content: "You are an expert assistant." },
-              { role: "user", content: "Tell me about this topic." },
-              { role: "assistant", content: "Here is the key info." }
-            ]
-          }
-        };
-      } else if (format === "qa") {
-        return {
-          id,
-          format: "qa",
-          topic: itemTopic,
-          qa: {
-            question: item.question || "What is this topic?",
-            answer: item.answer || "Detail answer of this topic"
-          }
-        };
-      } else {
-        // raw
-        return {
-          id,
-          format: "raw",
-          topic: itemTopic,
-          raw: {
-            title: item.title || "Section Overview",
-            text: item.text || "Detailed text contents"
-          }
-        };
-      }
+      return mapItem(item, id, "General Concepts");
     });
 
     res.json({
@@ -331,7 +292,7 @@ Your output must comply strictly with these criteria:
       items: finalItems
     });
   } catch (error: any) {
-    console.error("Synthesize breakdown:", error);
+    logger.error("Synthesize breakdown:", error);
     res.status(500).json({ error: error.message || "An unresolved error occurred during server synthesis." });
   }
 });
@@ -349,9 +310,6 @@ app.post("/api/generate-more", async (req: Request, res: Response) => {
     }
 
     const ai = getGeminiClient();
-    const schema = getSchemaForFormat(format);
-
-    console.log(`Generating more synthetic items for ${topic}...`);
 
     const systemInstruction = `You are an expert AI synthetic text compiler.
 Generate exactly ${count} completely brand-new, unique and detailed training dataset items in the '${format}' layout.
@@ -371,76 +329,41 @@ Ensure absolute precision. Keep the JSON perfect.`;
 
     const prompt = `Generate ${count} brand-new additional dataset items matching the JSON schema.`;
 
-    const generation = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
-      config: {
-        systemInstruction,
-        temperature: 0.8,
-        responseMimeType: "application/json",
-        responseSchema: schema
-      }
-    });
+    const generateMore = async () => {
+      const generation = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          systemInstruction,
+          temperature: 0.8,
+          responseMimeType: "application/json",
+          responseSchema: getSchemaForFormat(format)
+        }
+      });
 
-    const rawJsonText = cleanJsonString(generation.text || "{}");
-    const parsed = JSON.parse(rawJsonText);
-    const rawItems = parsed.items || [];
+      const rawJsonText = cleanJsonString(generation.text || "{}");
+      const parsed = JSON.parse(rawJsonText);
+      return parsed.items || [];
+    };
 
+    // Apply retry logic with timeout protection for generate-more
+    const rawItems = await createTimeoutPromise(
+      withRetry(generateMore, 2, 500),
+      60000,
+      "Additional items generation timed out"
+    );
+
+    // Use the same optimized mapper
+    const mapItem = createItemMapper(format);
     let idCounter = 1;
     const finalItems = rawItems.map((item: any) => {
       const id = `item-synthetic-${Date.now()}-${idCounter++}`;
-      const itemTopic = item.topic || "Extended Concepts";
-
-      if (format === "alpaca") {
-        return {
-          id,
-          format: "alpaca",
-          topic: itemTopic,
-          alpaca: {
-            instruction: item.instruction || "New instruction detail",
-            input: item.input || "",
-            output: item.output || ""
-          }
-        };
-      } else if (format === "sharegpt") {
-        return {
-          id,
-          format: "sharegpt",
-          topic: itemTopic,
-          sharegpt: {
-            messages: item.messages || [
-              { role: "system", content: "You are an expert." },
-              { role: "user", content: "Tell me about this new nuance." },
-              { role: "assistant", content: "Here is the response." }
-            ]
-          }
-        };
-      } else if (format === "qa") {
-        return {
-          id,
-          format: "qa",
-          topic: itemTopic,
-          qa: {
-            question: item.question || "Synthesized detail question?",
-            answer: item.answer || "Synthesized detail response"
-          }
-        };
-      } else {
-        return {
-          id,
-          format: "raw",
-          topic: itemTopic,
-          raw: {
-            title: item.title || "Synthesized Prose Title",
-            text: item.text || "Description of synthesized concepts"
-          }
-        };
-      }
+      return mapItem(item, id, "Extended Concepts");
     });
 
     res.json({ items: finalItems });
   } catch (error: any) {
-    console.error("Synthesize more breakdown:", error);
+    logger.error("Synthesize more breakdown:", error);
     res.status(500).json({ error: error.message || "An unresolved error occurred during expansion generation." });
   }
 });
@@ -463,6 +386,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
+    logger.info(`Server running on http://0.0.0.0:${PORT}`);
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
 }
