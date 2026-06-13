@@ -248,6 +248,7 @@ Your output must comply strictly with these criteria:
       const prompt = `Synthesize exactly ${itemsInThisBatch} training dataset items. Refuse placeholder or truncated values. Output absolutely valid JSON.`;
 
       const generateBatch = async () => {
+        // 1. Initial Generation
         const generation = await ai.models.generateContent({
           model: "gemini-3.5-flash",
           contents: prompt,
@@ -260,9 +261,73 @@ Your output must comply strictly with these criteria:
         });
 
         const rawJsonText = cleanJsonString(generation.text || "{}");
-        const parsed = JSON.parse(rawJsonText);
-        return parsed.items || [];
+        let items = JSON.parse(rawJsonText).items || [];
+
+        if (items.length === 0) return [];
+
+        // 2. Critic Phase: Audit the batch for logical integrity
+        logger.info(`Auditing batch of ${items.length} items...`);
+        const judgePrompt = `You are a world-class logic auditor. Review these ${items.length} training items. 
+For each item, identify:
+1. Logical gaps in the 'metadata.reasoning' path.
+2. Factual inaccuracies.
+3. Misalignment between reasoning and the final output.
+4. Subtle logical traps that were not correctly handled.
+
+Output a JSON array of critiques, where each object matches the index of the item:
+{ "critiques": [ { "index": 0, "isValid": boolean, "critique": "detailed feedback" }, ... ] }`;
+
+        const judgeResponse = await ai.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: `${judgePrompt}\n\nItems to audit:\n${JSON.stringify(items)}`,
+          config: {
+            temperature: 0.2,
+            responseMimeType: "application/json"
+          }
+        });
+
+        const judgeData = JSON.parse(cleanJsonString(judgeResponse.text || "{}"));
+        const critiques = judgeData.critiques || [];
+
+        // 3. Refinement Phase: Fix items that failed the audit
+        const failedIndices = critiques.filter(c => !c.isValid).map(c => c.index);
+
+        if (failedIndices.length > 0) {
+          logger.info(`Refining ${failedIndices.length} items based on critic feedback...`);
+          
+          const refinerPrompt = `You are an expert AI refiner. I will provide you with a set of training items and their corresponding critiques. 
+Rewrite the items to ensure absolute logical precision and high-fidelity reasoning. 
+Preserve the original intent and format. Ensure the 'metadata.reasoning' is now flawless.
+
+You MUST output a JSON object containing a 'refinedItems' array, where each object includes the 'index' of the original item it is replacing.
+Format: { "refinedItems": [ { "index": 0, "item": { ...original schema... } }, ... ] }
+
+Input:
+${critiques.filter(c => !c.isValid).map(c => `Item Index ${c.index}: ${JSON.stringify(items[c.index])}\nCritique: ${c.critique}`).join("\n\n")}
+`;
+
+          const refinerResponse = await ai.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: refinerPrompt,
+            config: {
+              temperature: 0.4,
+              responseMimeType: "application/json"
+            }
+          });
+
+          const refinedData = JSON.parse(cleanJsonString(refinerResponse.text || "{}"));
+          const refinedItems = refinedData.refinedItems || [];
+
+          refinedItems.forEach((entry: any) => {
+            if (typeof entry.index === 'number' && items[entry.index]) {
+              items[entry.index] = entry.item;
+            }
+          });
+        }
+
+        return items;
       };
+
 
       // Apply retry logic with timeout protection
       return createTimeoutPromise(

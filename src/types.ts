@@ -34,6 +34,13 @@ export interface DatasetItem {
   id: string;
   format: DatasetFormat;
   topic?: string;
+  metadata: {
+    reasoning: string;
+    intent: string;
+    complexity: string;
+    is_negative: boolean;
+    correction?: string;
+  };
   alpaca?: AlpacaItem;
   sharegpt?: ShareGPTItem;
   qa?: QAItem;

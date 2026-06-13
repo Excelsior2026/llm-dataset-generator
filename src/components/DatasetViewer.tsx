@@ -665,6 +665,33 @@ export default function DatasetViewer({
                 {/* Expanded fields */}
                 {isExpanded && (
                   <div className="px-4 pb-4 pt-1 border-t border-slate-50 bg-slate-50/40 rounded-b-xl space-y-3 font-sans">
+                    
+                    {/* Logic & Reasoning Section */}
+                    <div className="grid grid-cols-1 gap-2 p-3 bg-indigo-900/5 border border-indigo-100 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">
+                          <Layers className="w-3 h-3" /> Reasoning Path
+                        </h4>
+                        <div className="flex gap-2">
+                          <span className="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded uppercase">
+                            {item.metadata?.intent || "General"}
+                          </span>
+                          <span className="text-[9px] font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded uppercase">
+                            {item.metadata?.complexity || "Intermediate"}
+                          </span>
+                        </div}
+                      </div>
+                      <p className="text-xs text-slate-700 italic leading-relaxed bg-white border border-indigo-50 p-2 rounded shadow-sm whitespace-pre-wrap">
+                        {item.metadata?.reasoning || "No reasoning path generated."}
+                      </p>
+                      {item.metadata?.is_negative && (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded text-xs text-red-800 leading-relaxed">
+                          <strong className="text-[10px] uppercase font-bold block mb-1">Correction Loop:</strong>
+                          {item.metadata.correction || "No correction provided."}
+                        </div>
+                      )}
+                    </div>
+
                     {item.format === "alpaca" && item.alpaca && (
                       <div className="space-y-2 text-sm leading-relaxed text-slate-600">
                         {item.alpaca.input && (
@@ -679,7 +706,7 @@ export default function DatasetViewer({
                         </div>
                       </div>
                     )}
-
+                    
                     {item.format === "sharegpt" && item.sharegpt && (
                       <div className="space-y-2">
                         {item.sharegpt.messages.map((msg, mIdx) => {
@@ -687,16 +714,16 @@ export default function DatasetViewer({
                           const labelColor = msg.role === "user" ? "text-indigo-600" : msg.role === "system" ? "text-slate-600" : "text-emerald-600";
                           return (
                             <div key={mIdx} className={`border p-2.5 rounded-lg ${bg}`}>
-                              <h4 className={`text-[9px] font-bold uppercase tracking-wider mb-1 ${labelColor}`}>
-                                {msg.role}
-                              </h4>
-                              <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                             <h4 className={`text-[9px] font-bold uppercase tracking-wider mb-1 ${labelColor}`}>
+                               {msg.role}
+                             </h4>
+                             <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                             </div>
                           );
                         })}
                       </div>
                     )}
-
+                    
                     {item.format === "qa" && item.qa && (
                       <div className="space-y-2 text-sm text-slate-600 leading-relaxed">
                         <div className="bg-white border border-slate-100 rounded-lg p-3">
@@ -709,7 +736,7 @@ export default function DatasetViewer({
                         </div>
                       </div>
                     )}
-
+                    
                     {item.format === "raw" && item.raw && (
                       <div className="bg-white border border-slate-100 rounded-lg p-3 shadow-2xs text-sm">
                         <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Textbook Passages Body</h4>
@@ -718,6 +745,7 @@ export default function DatasetViewer({
                     )}
                   </div>
                 )}
+
               </div>
             );
           })
