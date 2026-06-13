@@ -1,6 +1,6 @@
 // Test suite for LLM Dataset Generator utilities
 import { describe, it, beforeEach, afterEach, assert } from 'node:test';
-import { ApiError, withRetry, createTimeoutPromise, Logger, Memoizer } from '../src/utils/index';
+import { ApiError, withRetry, createTimeoutPromise, Logger, Memoizer } from '../utils/index';
 
 /**
  * Test ApiError class
@@ -161,30 +161,80 @@ describe('Memoizer', () => {
   });
 });
 
-/**
- * Test mapItemToFormat function
- */
-describe('mapItemToFormat', () => {
-  // This test requires importing from the utils file
-  // Since it's a private function, we'll test it indirectly through server functionality
-  it('should be properly exported', async () => {
-    const { mapItemToFormat } = await import('../src/utils/index');
+  /**
+   * Test getSchemaForFormat function
+   */
+  describe('getSchemaForFormat', () => {
+    let getSchemaForFormat: (format: string) => Record<string, any>;
     
-    // Test Alpaca format
-    const alpacaResult = mapItemToFormat(
-      {
-        instruction: 'Test instruction',
-        input: 'Test input',
-        output: 'Test output',
-        topic: 'Test topic'
-      },
-      'alpaca',
-      'test-id',
-      'Test topic'
-    );
+    beforeEach(async () => {
+      const utils = await import('../utils/index');
+      getSchemaForFormat = utils.getSchemaForFormat;
+    });
     
-    assert.strictEqual(alpacaResult.id, 'test-id');
-    assert.strictEqual(alpacaResult.format, 'alpaca');
-    assert.strictEqual(alpacaResult.alpaca?.instruction, 'Test instruction');
+    it('should return a valid schema for alpaca format', () => {
+      const schema = getSchemaForFormat('alpaca');
+      assert.strictEqual(schema.type, 'OBJECT');
+      assert(schema.properties.items.type, 'ARRAY');
+      assert('instruction' in schema.properties.items.items.properties);
+      assert('input' in schema.properties.items.items.properties);
+      assert('output' in schema.properties.items.items.properties);
+    });
+    
+    it('should return a valid schema for sharegpt format', () => {
+      const schema = getSchemaForFormat('sharegpt');
+      assert.strictEqual(schema.type, 'OBJECT');
+      assert(schema.properties.items.type, 'ARRAY');
+      assert('messages' in schema.properties.items.items.properties);
+    });
+    
+    it('should return a valid schema for qa format', () => {
+      const schema = getSchemaForFormat('qa');
+      assert.strictEqual(schema.type, 'OBJECT');
+      assert(schema.properties.items.type, 'ARRAY');
+      assert('question' in schema.properties.items.items.properties);
+      assert('answer' in schema.properties.items.items.properties);
+    });
+    
+    it('should return a valid schema for raw format', () => {
+      const schema = getSchemaForFormat('raw');
+      assert.strictEqual(schema.type, 'OBJECT');
+      assert(schema.properties.items.type, 'ARRAY');
+      assert('title' in schema.properties.items.items.properties);
+      assert('text' in schema.properties.items.items.properties);
+    });
+    
+    it('should return a default schema for unknown format', () => {
+      const schema = getSchemaForFormat('unknown');
+      assert.strictEqual(schema.type, 'OBJECT');
+      assert(schema.properties.items.type, 'ARRAY');
+    });
   });
-});
+
+  /**
+   * Test mapItemToFormat function
+   */
+  describe('mapItemToFormat', () => {
+    // This test requires importing from the utils file
+    // Since it's a private function, we'll test it indirectly through server functionality
+    it('should be properly exported', async () => {
+      const { mapItemToFormat } = await import('../utils/index');
+      
+      // Test Alpaca format
+      const alpacaResult = mapItemToFormat(
+        {
+          instruction: 'Test instruction',
+          input: 'Test input',
+          output: 'Test output',
+          topic: 'Test topic'
+        },
+        'alpaca',
+        'test-id',
+        'Test topic'
+      );
+      
+      assert.strictEqual(alpacaResult.id, 'test-id');
+      assert.strictEqual(alpacaResult.format, 'alpaca');
+      assert.strictEqual(alpacaResult.alpaca?.instruction, 'Test instruction');
+    });
+  });

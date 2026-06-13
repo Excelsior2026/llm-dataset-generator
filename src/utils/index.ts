@@ -9,6 +9,13 @@ export interface ItemMapping {
   id: string;
   format: string;
   topic: string;
+  metadata: {
+    reasoning: string;
+    intent: string;
+    complexity: string;
+    is_negative: boolean;
+    correction?: string;
+  };
   alpaca?: {
     instruction: string;
     input: string;
@@ -233,4 +240,96 @@ export class Memoizer<T, R> {
   size(): number {
     return this.cache.size;
   }
+}
+
+// JSON Schema utilities for Gemini API
+export function getSchemaForFormat(format: string): Record<string, any> {
+  const schema = {
+    type: "OBJECT",
+    properties: {
+      items: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            metadata: {
+              type: "OBJECT",
+              properties: {
+                reasoning: { type: "STRING", description: "Detailed step-by-step chain of thought explaining how the answer is derived." },
+                intent: { type: "STRING", description: "The cognitive goal (e.g., 'Socratic', 'Adversarial', 'First-Principles', 'Deductive')." },
+                complexity: { type: "STRING", enum: ["novice", "intermediate", "expert"] },
+                is_negative: { type: "BOOLEAN", description: "Whether this example intentionally contains a logical flaw for contrastive learning." },
+                correction: { type: "STRING", description: "If is_negative is true, the corrected reasoning and final answer." }
+              },
+              required: ["reasoning", "intent", "complexity", "is_negative"]
+            }
+          },
+          required: ["metadata"]
+        }
+      }
+    },
+    required: ["items"]
+  };
+
+  switch (format) {
+    case "alpaca":
+      schema.properties.items.items.properties.alpaca = {
+        type: "OBJECT",
+        properties: {
+          instruction: { type: "STRING" },
+          input: { type: "STRING" },
+          output: { type: "STRING" }
+        },
+        required: ["instruction", "input", "output"]
+      };
+      schema.properties.items.items.required.push("alpaca");
+      break;
+    case "sharegpt":
+      schema.properties.items.items.properties.sharegpt = {
+        type: "OBJECT",
+        properties: {
+          messages: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                role: { type: "STRING", enum: ["system", "user", "assistant"] },
+                content: { type: "STRING" }
+              },
+              required: ["role", "content"]
+            }
+          }
+        },
+        required: ["messages"]
+      };
+      schema.properties.items.items.required.push("sharegpt");
+      break;
+    case "qa":
+      schema.properties.items.items.properties.qa = {
+        type: "OBJECT",
+        properties: {
+          question: { type: "STRING" },
+          answer: { type: "STRING" }
+        },
+        required: ["question", "answer"]
+      };
+      schema.properties.items.items.required.push("qa");
+      break;
+    case "raw":
+      schema.properties.items.items.properties.raw = {
+        type: "OBJECT",
+        properties: {
+          title: { type: "STRING" },
+          text: { type: "STRING" }
+        },
+        required: ["title", "text"]
+      };
+      schema.properties.items.items.required.push("raw");
+      break;
+    default:
+      // Fallback for unknown formats
+      break;
+  }
+
+  return schema;
 }

@@ -7,7 +7,7 @@ import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
-import { withRetry, createTimeoutPromise, logger } from "./src/utils/index";
+import { withRetry, createTimeoutPromise, createItemMapper, getSchemaForFormat, logger } from "./src/utils/index";
 
 dotenv.config();
 
@@ -72,6 +72,12 @@ function cleanJsonString(str: string): string {
 function createItemMapper(format: string) {
   return (item: any, id: string, topic: string) => {
     const itemTopic = item.topic || "General Concepts";
+    const metadata = item.metadata || {
+      reasoning: "No reasoning provided",
+      intent: "General",
+      complexity: "intermediate",
+      is_negative: false
+    };
     
     switch (format) {
       case "alpaca":
@@ -79,10 +85,11 @@ function createItemMapper(format: string) {
           id,
           format: "alpaca",
           topic: itemTopic,
+          metadata,
           alpaca: {
-            instruction: item.instruction || "No instruction provided",
-            input: item.input || "",
-            output: item.output || ""
+            instruction: item.alpaca?.instruction || item.instruction || "No instruction provided",
+            input: item.alpaca?.input || item.input || "",
+            output: item.alpaca?.output || item.output || ""
           }
         };
       case "sharegpt":
@@ -90,8 +97,9 @@ function createItemMapper(format: string) {
           id,
           format: "sharegpt",
           topic: itemTopic,
+          metadata,
           sharegpt: {
-            messages: item.messages || [
+            messages: item.sharegpt?.messages || item.messages || [
               { role: "system", content: "You are an expert assistant." },
               { role: "user", content: "Tell me about this topic." },
               { role: "assistant", content: "Here is the key info." }
@@ -103,9 +111,10 @@ function createItemMapper(format: string) {
           id,
           format: "qa",
           topic: itemTopic,
+          metadata,
           qa: {
-            question: item.question || "What is this topic?",
-            answer: item.answer || "Detail answer of this topic"
+            question: item.qa?.question || item.question || "What is this topic?",
+            answer: item.qa?.answer || item.answer || "Detail answer of this topic"
           }
         };
       case "raw":
@@ -113,9 +122,10 @@ function createItemMapper(format: string) {
           id,
           format: "raw",
           topic: itemTopic,
+          metadata,
           raw: {
-            title: item.title || "Section Overview",
-            text: item.text || "Detailed text contents"
+            title: item.raw?.title || item.title || "Section Overview",
+            text: item.raw?.text || item.text || "Detailed text contents"
           }
         };
       default:
@@ -123,6 +133,7 @@ function createItemMapper(format: string) {
           id,
           format: "raw",
           topic: itemTopic,
+          metadata,
           raw: {
             title: "Unknown Format",
             text: "Data in unknown format"
@@ -224,6 +235,10 @@ ${researchSummary}
 ---
 
 Your output must comply strictly with these criteria:
+- **Reasoning First**: For every item, you MUST first construct a detailed, step-by-step chain-of-thought reasoning path in the 'metadata.reasoning' field. This should explain the logical steps to arrive at the correct output.
+- **Intent Encoding**: Assign a cognitive intent to each item (e.g., 'Socratic', 'Adversarial', 'First-Principles', 'Deductive'). This defines the "goal" of the interaction.
+- **Rationality & Contrast**: Some items should be marked as 'is_negative: true'. In these cases, the 'output' should contain a subtle but critical logical error, and 'metadata.correction' must provide the corrected logic and answer.
+- **Complexity Scaling**: Vary the complexity across 'novice', 'intermediate', and 'expert' levels.
 - **Tone/Style**: ${tone}.
 - **Target Complexity**: ${complexity} depth.
 - **Subtopics to target in this specific batch**: ${subtopicSubset.join(", ")}.
@@ -323,8 +338,13 @@ Your items MUST be entirely distinct from these existing items/prompts that are 
 ${existingPrompts.slice(0, 15).join("\n")}
 ---
 
-Tone: ${tone}.
-Target Complexity: ${complexity}.
+Your output must comply strictly with these criteria:
+- **Reasoning First**: For every item, construct a detailed, step-by-step chain-of-thought in 'metadata.reasoning'.
+- **Intent Encoding**: Assign a cognitive intent (e.g., 'Socratic', 'Adversarial', 'First-Principles').
+- **Rationality & Contrast**: Mix in 'is_negative: true' items where the output contains a logical flaw, provided with a 'metadata.correction'.
+- **Complexity Scaling**: Ensure a range of 'novice', 'intermediate', and 'expert' levels.
+- Tone: ${tone}.
+- Target Complexity: ${complexity}.
 Ensure absolute precision. Keep the JSON perfect.`;
 
     const prompt = `Generate ${count} brand-new additional dataset items matching the JSON schema.`;
