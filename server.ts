@@ -69,6 +69,7 @@ function cleanJsonString(str: string): string {
 }
 
 // Optimized format mapping function to reduce duplication
+// Optimized format mapping function to reduce duplication
 function createItemMapper(format: string) {
   return (item: any, id: string, topic: string) => {
     const itemTopic = item.topic || "General Concepts";
