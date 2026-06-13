@@ -679,6 +679,60 @@ export default function DatasetViewer({
                           <span className="text-[9px] font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded uppercase">
                             {item.metadata?.complexity || "Intermediate"}
                           </span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-700 italic leading-relaxed bg-white border border-indigo-50 p-2 rounded shadow-sm whitespace-pre-wrap">
+                        {item.metadata?.reasoning || "No reasoning path generated."}
+                      </p>
+                      {item.metadata?.is_negative && (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded text-xs text-red-800 leading-relaxed">
+                          <strong className="text-[10px] uppercase font-bold block mb-1">Correction Loop:</strong>
+                          {item.metadata.correction || "No correction provided."}
+                        </div>
+                      )}
+                    </div>
+
+                    
+                    {/* Logic & Reasoning Section */}
+                    <div className="grid grid-cols-1 gap-2 p-3 bg-indigo-900/5 border border-indigo-100 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">
+                          <Layers className="w-3 h-3" /> Reasoning Path
+                        </h4>
+                        <div className="flex gap-2">
+                          <span className="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded uppercase">
+                            {item.metadata?.intent || "General"}
+                          </span>
+                          <span className="text-[9px] font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded uppercase">
+                            {item.metadata?.complexity || "Intermediate"}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-700 italic leading-relaxed bg-white border border-indigo-50 p-2 rounded shadow-sm whitespace-pre-wrap">
+                        {item.metadata?.reasoning || "No reasoning path generated."}
+                      </p>
+                      {item.metadata?.is_negative && (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded text-xs text-red-800 leading-relaxed">
+                          <strong className="text-[10px] uppercase font-bold block mb-1">Correction Loop:</strong>
+                          {item.metadata.correction || "No correction provided."}
+                        </div>
+                      )}
+                    </div>
+
+                    
+                    {/* Logic & Reasoning Section */}
+                    <div className="grid grid-cols-1 gap-2 p-3 bg-indigo-900/5 border border-indigo-100 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">
+                          <Layers className="w-3 h-3" /> Reasoning Path
+                        </h4>
+                        <div className="flex gap-2">
+                          <span className="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded uppercase">
+                            {item.metadata?.intent || "General"}
+                          </span>
+                          <span className="text-[9px] font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded uppercase">
+                            {item.metadata?.complexity || "Intermediate"}
+                          </span>
                         </div}
                       </div>
                       <p className="text-xs text-slate-700 italic leading-relaxed bg-white border border-indigo-50 p-2 rounded shadow-sm whitespace-pre-wrap">
@@ -815,19 +869,75 @@ export default function DatasetViewer({
               </button>
             </div>
 
-            <div className="space-y-3">
-              {/* Common Topic Change */}
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Discovered Subtopic</label>
-                <input
-                  type="text"
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-md py-1.5 px-2.5 font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  value={editingItem.topic || ""}
-                  onChange={(e) => setEditingItem({ ...editingItem, topic: e.target.value })}
-                />
-              </div>
+               <div className="space-y-3">
+                 {/* Common Topic Change */}
+                 <div className="grid grid-cols-2 gap-3">
+                   <div>
+                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Discovered Subtopic</label>
+                     <input
+                       type="text"
+                       className="w-full text-xs bg-slate-50 border border-slate-200 rounded-md py-1.5 px-2.5 font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                       value={editingItem.topic || ""}
+                       onChange={(e) => setEditingItem({ ...editingItem, topic: e.target.value })}
+                     />
+                   </div>
+                   <div>
+                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Cognitive Intent</label>
+                     <input
+                       type="text"
+                       className="w-full text-xs bg-slate-50 border border-slate-200 rounded-md py-1.5 px-2.5 font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                       value={editingItem.metadata?.intent || ""}
+                       onChange={(e) => setEditingItem({ 
+                         ...editingItem, 
+                         metadata: { ...editingItem.metadata!, intent: e.target.value } 
+                       })}
+                     />
+                   </div>
+                 </div>
+ 
+                 <div className="grid grid-cols-1 gap-3">
+                   <div>
+                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Logical Reasoning Path (CoT)</label>
+                     <textarea
+                       rows={4}
+                       className="w-full text-xs border border-slate-200 rounded-md p-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-indigo-50/20"
+                       value={editingItem.metadata?.reasoning || ""}
+                       onChange={(e) => setEditingItem({ 
+                         ...editingItem, 
+                         metadata: { ...editingItem.metadata!, reasoning: e.target.value } 
+                       })}
+                     />
+                   </div>
+                   <div className="flex items-center gap-3">
+                     <div className="flex items-center gap-2">
+                       <input 
+                         type="checkbox" 
+                         checked={editingItem.metadata?.is_negative || false}
+                         onChange={(e) => setEditingItem({ 
+                           ...editingItem, 
+                           metadata: { ...editingItem.metadata!, is_negative: e.target.checked } 
+                         })}
+                         className="w-3 h-3 text-indigo-600"
+                       />
+                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Is Logical Trap (Negative Example)</label>
+                     </div>
+                   </div>
+                   {editingItem.metadata?.is_negative && (
+                     <div>
+                       <label className="block text-[10px] font-bold text-red-500 uppercase tracking-wider mb-1">Correction / Ground Truth</label>
+                       <textarea
+                         rows={3}
+                         className="w-full text-xs border border-red-200 rounded-md p-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-red-500 bg-red-50/20"
+                         value={editingItem.metadata?.correction || ""}
+                         onChange={(e) => setEditingItem({ 
+                           ...editingItem, 
+                           metadata: { ...editingItem.metadata!, correction: e.target.value } 
+                         })}
+                       />
+                     </div>
+                   )}
+                 </div>
 
-              {editingItem.format === "alpaca" && editingItem.alpaca && (
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Instruction / Prompt</label>
