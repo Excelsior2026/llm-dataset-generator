@@ -30,6 +30,13 @@ export interface RawItem {
   title: string;
 }
 
+export interface TrajectoryStep {
+  step: number;
+  phase: 'initial_attempt' | 'self_critique' | 'final_correction';
+  content: string;
+  thought_process?: string;
+}
+
 export interface DatasetItem {
   id: string;
   format: DatasetFormat;
@@ -40,6 +47,7 @@ export interface DatasetItem {
     complexity: string;
     is_negative: boolean;
     correction?: string;
+    trajectory?: TrajectoryStep[];
   };
   alpaca?: AlpacaItem;
   sharegpt?: ShareGPTItem;

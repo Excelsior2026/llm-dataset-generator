@@ -679,11 +679,29 @@ export default function DatasetViewer({
                           <span className="text-[9px] font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded uppercase">
                             {item.metadata?.complexity || "Intermediate"}
                           </span>
-                        </div>
+                        </div}
                       </div>
                       <p className="text-xs text-slate-700 italic leading-relaxed bg-white border border-indigo-50 p-2 rounded shadow-sm whitespace-pre-wrap">
                         {item.metadata?.reasoning || "No reasoning path generated."}
                       </p>
+                      {item.metadata?.trajectory && item.metadata.trajectory.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          <h5 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+                            <RefreshCw className="w-3 h-3" /> Thought Trajectory
+                          </h5>
+                          {item.metadata.trajectory.map((t, i) => (
+                            <div key={i} className="text-xs p-2 rounded-lg border border-indigo-100 bg-indigo-50/30 leading-relaxed">
+                              <span className="font-bold text-indigo-600 text-[9px] uppercase block mb-1">
+                                {t.phase.replace('_', ' ')} (Step {t.step})
+                              </span>
+                              <p className="text-slate-700 whitespace-pre-wrap">{t.content}</p>
+                              {t.thought_process && (
+                                <p className="text-[10px] text-slate-400 mt-1 italic">Internal Monologue: {t.thought_process}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {item.metadata?.is_negative && (
                         <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded text-xs text-red-800 leading-relaxed">
                           <strong className="text-[10px] uppercase font-bold block mb-1">Correction Loop:</strong>

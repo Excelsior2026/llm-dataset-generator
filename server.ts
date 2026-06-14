@@ -254,15 +254,20 @@ ${researchSummary}
 ---
 
 Your output must comply strictly with these criteria:
-- **Reasoning First**: For every item, you MUST first construct a detailed, step-by-step chain-of-thought reasoning path in the 'metadata.reasoning' field. This should explain the logical steps to arrive at the correct output.
-- **Intent Encoding**: Assign a cognitive intent to each item (e.g., 'Socratic', 'Adversarial', 'First-Principles', 'Deductive'). This defines the "goal" of the interaction.
+- **Reasoning First**: For every item, you MUST first construct a detailed, step-by-step chain-of-thought reasoning path in the 'metadata.reasoning' field.
+- **Intent Encoding**: Assign a cognitive intent to each item (e.g., 'Socratic', 'Adversarial', 'First-Principles', 'Deductive').
 - **Rationality & Contrast**: Some items should be marked as 'is_negative: true'. In these cases, the 'output' should contain a subtle but critical logical error, and 'metadata.correction' must provide the corrected logic and answer.
+- **Self-Correction Trajectories**: For high-complexity items, you MUST generate a 'metadata.trajectory' array. This should model the *process* of thinking by documenting:
+  1. Initial Attempt: A plausible but slightly flawed or incomplete first draft.
+  2al. Self-Critique: The internal realization of the flaw.
+  3. Final Correction: The polished, perfect answer.
 - **Complexity Scaling**: Vary the complexity across 'novice', 'intermediate', and 'expert' levels.
 - **Tone/Style**: ${tone}.
 - **Target Complexity**: ${complexity} depth.
 - **Subtopics to target in this specific batch**: ${subtopicSubset.join(", ")}.
 - Ensure every example is highly educational and unique. Avoid repeating similar sentence structures or concepts across items.
 - Output MUST be strict JSON matching the requested schema. Do not insert any Markdown wrappers or explanatory text outside the JSON.`;
+
 
       const prompt = `Synthesize exactly ${itemsInThisBatch} training dataset items. Refuse placeholder or truncated values. Output absolutely valid JSON.`;
 
