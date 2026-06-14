@@ -110,7 +110,9 @@ function mapItemToFormat(item: any, format: string, id: string, topic: string): 
 }
 
 export function createItemMapper(format: string) {
-  return mapItemToFormat;
+  return (item: any, id: string, topic: string) => {
+    return mapItemToFormat(item, format, id, topic);
+  };
 }
 
 export class ApiError extends Error {
