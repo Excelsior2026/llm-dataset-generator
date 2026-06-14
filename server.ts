@@ -257,10 +257,10 @@ Your output must comply strictly with these criteria:
 - **Reasoning First**: For every item, you MUST first construct a detailed, step-by-step chain-of-thought reasoning path in the 'metadata.reasoning' field.
 - **Intent Encoding**: Assign a cognitive intent to each item (e.g., 'Socratic', 'Adversarial', 'First-Principles', 'Deductive').
 - **Rationality & Contrast**: Some items should be marked as 'is_negative: true'. In these cases, the 'output' should contain a subtle but critical logical error, and 'metadata.correction' must provide the corrected logic and answer.
-- **Self-Correction Trajectories**: For high-complexity items, you MUST generate a 'metadata.trajectory' array. This should model the *process* of thinking by documenting:
-  1. Initial Attempt: A plausible but slightly flawed or incomplete first draft.
-  2al. Self-Critique: The internal realization of the flaw.
-  3. Final Correction: The polished, perfect answer.
+- **Self-Correction Trajectories**: For high-complexity items, generate a 'metadata.trajectory' array (Initial Attempt $\rightarrow$ Self-Critique $\rightarrow$ Final Correction).
+- **Theory of Mind (ToM)**: Assign a 'metadata.persona' to each item. Define the persona's role, mental state (e.g., "skeptical", "curious", "confused"), and a specific constraint they are operating under. The output must be tailored to this persona.
+- **Interdisciplinary Synthesis**: For a subset of items, create an 'interdisciplinary_link'. Connect the core topic to a seemingly unrelated second domain. Explain the 'synthesis_bridge'—the conceptual logic that connects them.
+- **Ambiguity Handling**: Some items should be intentionally under-specified. The 'correct' output in these cases is for the AI to identify the ambiguity and ask the necessary clarifying questions.
 - **Complexity Scaling**: Vary the complexity across 'novice', 'intermediate', and 'expert' levels.
 - **Tone/Style**: ${tone}.
 - **Target Complexity**: ${complexity} depth.

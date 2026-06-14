@@ -48,6 +48,16 @@ export interface DatasetItem {
     is_negative: boolean;
     correction?: string;
     trajectory?: TrajectoryStep[];
+    persona?: {
+      role: string;
+      mental_state: string;
+      constraint: string;
+    };
+    interdisciplinary_link?: {
+      domain_a: string;
+      domain_b: string;
+      synthesis_bridge: string;
+    };
   };
   alpaca?: AlpacaItem;
   sharegpt?: ShareGPTItem;

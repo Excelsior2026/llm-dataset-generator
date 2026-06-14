@@ -681,7 +681,7 @@ export default function DatasetViewer({
                           </span>
                         </div}
                       </div>
-                      <p className="text-xs text-slate-700 italic leading-relaxed bg-white border border-indigo-50 p-2 rounded shadow-sm whitespace-pre-wrap">
+                      <p className="text-xs text-slate-700 italic leading-relaxed bg-white border border la
                         {item.metadata?.reasoning || "No reasoning path generated."}
                       </p>
                       {item.metadata?.trajectory && item.metadata.trajectory.length > 0 && (
@@ -700,6 +700,19 @@ export default function DatasetViewer({
                               )}
                             </div>
                           ))}
+                        </div>
+                      )}
+                      {item.metadata?.persona && (
+                        <div className="mt-3 p-2 bg-slate-100 border border-slate-200 rounded text-xs text-slate-600 italic">
+                          <strong className="text-[10px] uppercase font-bold block mb-1 text-slate-500">Persona Profile:</strong>
+                          {item.metadata.persona.role} | {item.metadata.persona.mental_state} | {item.metadata.persona.constraint}
+                        </div>
+                      )}
+                      {item.metadata?.interdisciplinary_link && (
+                        <div className="mt-3 p-2 bg-emerald-50 border border-emerald-100 rounded text-xs text-emerald-800 leading-relaxed">
+                          <strong className="text-[10px] uppercase font-bold block mb-1 text-emerald-600">Interdisciplinary Bridge:</strong>
+                          {item.metadata.interdisciplinary_link.domain_a} $\rightarrow$ {item.metadata.interdisciplinary_link.domain_b}
+                          <p className="mt-1 text-emerald-700">{item.metadata.interdisciplinary_link.synthesis_bridge}</p>
                         </div>
                       )}
                       {item.metadata?.is_negative && (
