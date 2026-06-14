@@ -39,6 +39,12 @@ export interface ItemMapping {
 
 function mapItemToFormat(item: any, format: string, id: string, topic: string): ItemMapping {
   const itemTopic = item.topic || "General Concepts";
+  const metadata = item.metadata || {
+    reasoning: "No reasoning provided",
+    intent: "General",
+    complexity: "intermediate",
+    is_negative: false
+  };
   
   switch (format) {
     case "alpaca":
@@ -46,6 +52,7 @@ function mapItemToFormat(item: any, format: string, id: string, topic: string): 
         id,
         format: "alpaca",
         topic: itemTopic,
+        metadata,
         alpaca: {
           instruction: item.instruction || "No instruction provided",
           input: item.input || "",
@@ -57,6 +64,7 @@ function mapItemToFormat(item: any, format: string, id: string, topic: string): 
         id,
         format: "sharegpt",
         topic: itemTopic,
+        metadata,
         sharegpt: {
           messages: item.messages || [
             { role: "system", content: "You are an expert assistant." },
@@ -70,6 +78,7 @@ function mapItemToFormat(item: any, format: string, id: string, topic: string): 
         id,
         format: "qa",
         topic: itemTopic,
+        metadata,
         qa: {
           question: item.question || "What is this topic?",
           answer: item.answer || "Detail answer of this topic"
@@ -80,6 +89,7 @@ function mapItemToFormat(item: any, format: string, id: string, topic: string): 
         id,
         format: "raw",
         topic: itemTopic,
+        metadata,
         raw: {
           title: item.title || "Section Overview",
           text: item.text || "Detailed text contents"
@@ -90,6 +100,7 @@ function mapItemToFormat(item: any, format: string, id: string, topic: string): 
         id,
         format: "raw",
         topic: itemTopic,
+        metadata,
         raw: {
           title: "Unknown Format",
           text: "Data in unknown format"
@@ -98,7 +109,9 @@ function mapItemToFormat(item: any, format: string, id: string, topic: string): 
   }
 }
 
-export { mapItemToFormat };
+export function createItemMapper(format: string) {
+  return mapItemToFormat;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -259,7 +272,36 @@ export function getSchemaForFormat(format: string): Record<string, any> {
                 intent: { type: "STRING", description: "The cognitive goal (e.g., 'Socratic', 'Adversarial', 'First-Principles', 'Deductive')." },
                 complexity: { type: "STRING", enum: ["novice", "intermediate", "expert"] },
                 is_negative: { type: "BOOLEAN", description: "Whether this example intentionally contains a logical flaw for contrastive learning." },
-                correction: { type: "STRING", description: "If is_negative is true, the corrected reasoning and final answer." }
+                correction: { type: "STRING", description: "If is_negative is true, the corrected reasoning and final answer." },
+                trajectory: {
+                  type: "ARRAY",
+                  items: {
+                    type: "OBJECT",
+                    properties: {
+                      step: { type: "NUMBER" },
+                      phase: { type: "STRING", enum: ["initial_attempt", "self_critique", "final_correction"] },
+                      content: { type: "STRING" },
+                      thought_process: { type: "STRING" }
+                    },
+                    required: ["step", "phase", "content"]
+                  }
+                },
+                persona: {
+                  type: "OBJECT",
+                  properties: {
+                    role: { type: "STRING" },
+                    mental_state: { type: "STRING" },
+                    constraint: { type: "STRING" }
+                  }
+                },
+                interdisciplinary_link: {
+                  type: "OBJECT",
+                  properties: {
+                    domain_a: { type: "STRING" },
+                    domain_b: { type: "STRING" },
+                    synthesis_bridge: { type: "STRING" }
+                  }
+                }
               },
               required: ["reasoning", "intent", "complexity", "is_negative"]
             }
@@ -273,7 +315,7 @@ export function getSchemaForFormat(format: string): Record<string, any> {
 
   switch (format) {
     case "alpaca":
-      schema.properties.items.items.properties.alpaca = {
+      (schema.properties.items.items.properties as any).alpaca = {
         type: "OBJECT",
         properties: {
           instruction: { type: "STRING" },
@@ -285,7 +327,7 @@ export function getSchemaForFormat(format: string): Record<string, any> {
       schema.properties.items.items.required.push("alpaca");
       break;
     case "sharegpt":
-      schema.properties.items.items.properties.sharegpt = {
+      (schema.properties.items.items.properties as any).sharegpt = {
         type: "OBJECT",
         properties: {
           messages: {
@@ -305,7 +347,7 @@ export function getSchemaForFormat(format: string): Record<string, any> {
       schema.properties.items.items.required.push("sharegpt");
       break;
     case "qa":
-      schema.properties.items.items.properties.qa = {
+      (schema.properties.items.items.properties as any).qa = {
         type: "OBJECT",
         properties: {
           question: { type: "STRING" },
@@ -316,7 +358,7 @@ export function getSchemaForFormat(format: string): Record<string, any> {
       schema.properties.items.items.required.push("qa");
       break;
     case "raw":
-      schema.properties.items.items.properties.raw = {
+      (schema.properties.items.items.properties as any).raw = {
         type: "OBJECT",
         properties: {
           title: { type: "STRING" },

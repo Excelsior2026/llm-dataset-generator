@@ -155,7 +155,7 @@ export default function MetricsPanel({ items }: MetricsPanelProps) {
 
         <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-xs flex flex-col justify-between" id="metric-density">
           <span className="block text-xs font-medium text-slate-500 uppercase tracking-wider">Ready State</span>
-          <p className="text-2xl font-bold text-indigo-600 font-mono mt-1.5">94.8%</p>
+          <p className="text-2xl font-bold text-indigo-600 font-mono mt-1.5">{Math.min(99.9, (90 + (uniqueDensity / 10))).toFixed(1)}%</p>
           <span className="block text-[10px] text-slate-400 mt-1 truncate">{avgResponseChars.toLocaleString()} chars/item</span>
         </div>
       </div>

@@ -223,7 +223,13 @@ export default function DatasetViewer({
     const base: DatasetItem = {
       id: `item-manual-${Date.now()}`,
       format,
-      topic: itemTopic
+      topic: itemTopic,
+      metadata: {
+        reasoning: "Manual entry",
+        intent: "User-defined",
+        complexity: "intermediate",
+        is_negative: false
+      }
     };
 
     if (format === "alpaca") {
@@ -679,9 +685,9 @@ export default function DatasetViewer({
                           <span className="text-[9px] font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded uppercase">
                             {item.metadata?.complexity || "Intermediate"}
                           </span>
-                        </div}
+                        </div>
                       </div>
-                      <p className="text-xs text-slate-700 italic leading-relaxed bg-white border border la
+                      <p className="text-xs text-slate-700 italic leading-relaxed bg-white border border-indigo-50 p-2 rounded shadow-sm whitespace-pre-wrap">
                         {item.metadata?.reasoning || "No reasoning path generated."}
                       </p>
                       {item.metadata?.trajectory && item.metadata.trajectory.length > 0 && (
@@ -715,60 +721,6 @@ export default function DatasetViewer({
                           <p className="mt-1 text-emerald-700">{item.metadata.interdisciplinary_link.synthesis_bridge}</p>
                         </div>
                       )}
-                      {item.metadata?.is_negative && (
-                        <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded text-xs text-red-800 leading-relaxed">
-                          <strong className="text-[10px] uppercase font-bold block mb-1">Correction Loop:</strong>
-                          {item.metadata.correction || "No correction provided."}
-                        </div>
-                      )}
-                    </div>
-
-                    
-                    {/* Logic & Reasoning Section */}
-                    <div className="grid grid-cols-1 gap-2 p-3 bg-indigo-900/5 border border-indigo-100 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">
-                          <Layers className="w-3 h-3" /> Reasoning Path
-                        </h4>
-                        <div className="flex gap-2">
-                          <span className="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded uppercase">
-                            {item.metadata?.intent || "General"}
-                          </span>
-                          <span className="text-[9px] font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded uppercase">
-                            {item.metadata?.complexity || "Intermediate"}
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-slate-700 italic leading-relaxed bg-white border border-indigo-50 p-2 rounded shadow-sm whitespace-pre-wrap">
-                        {item.metadata?.reasoning || "No reasoning path generated."}
-                      </p>
-                      {item.metadata?.is_negative && (
-                        <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded text-xs text-red-800 leading-relaxed">
-                          <strong className="text-[10px] uppercase font-bold block mb-1">Correction Loop:</strong>
-                          {item.metadata.correction || "No correction provided."}
-                        </div>
-                      )}
-                    </div>
-
-                    
-                    {/* Logic & Reasoning Section */}
-                    <div className="grid grid-cols-1 gap-2 p-3 bg-indigo-900/5 border border-indigo-100 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">
-                          <Layers className="w-3 h-3" /> Reasoning Path
-                        </h4>
-                        <div className="flex gap-2">
-                          <span className="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded uppercase">
-                            {item.metadata?.intent || "General"}
-                          </span>
-                          <span className="text-[9px] font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded uppercase">
-                            {item.metadata?.complexity || "Intermediate"}
-                          </span>
-                        </div}
-                      </div>
-                      <p className="text-xs text-slate-700 italic leading-relaxed bg-white border border-indigo-50 p-2 rounded shadow-sm whitespace-pre-wrap">
-                        {item.metadata?.reasoning || "No reasoning path generated."}
-                      </p>
                       {item.metadata?.is_negative && (
                         <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded text-xs text-red-800 leading-relaxed">
                           <strong className="text-[10px] uppercase font-bold block mb-1">Correction Loop:</strong>
@@ -969,6 +921,7 @@ export default function DatasetViewer({
                    )}
                  </div>
 
+                {editingItem.format === "alpaca" && editingItem.alpaca && (
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Instruction / Prompt</label>

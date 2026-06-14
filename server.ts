@@ -12,7 +12,7 @@ import { withRetry, createTimeoutPromise, createItemMapper, getSchemaForFormat, 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: "50mb" }));
 
@@ -68,7 +68,6 @@ function cleanJsonString(str: string): string {
   return cleaned.trim();
 }
 
-// Optimized format mapping function to reduce duplication
 // Optimized format mapping function to reduce duplication
 function createItemMapper(format: string) {
   return (item: any, id: string, topic: string) => {
@@ -210,7 +209,13 @@ Format the end of your response exactly like this:
     const kgMatch = researchSummary.match(/\[KNOWLEDGE_GRAPH\](.*?)(\[END\]|$)/s);
     if (kgMatch) {
       try {
-        knowledgeGraph = JSON.parse(kgMatch[1].trim());
+        const parsed = JSON.parse(kgMatch[1].trim());
+        // Validate that nodes and edges arrays exist
+        if (parsed.nodes && Array.isArray(parsed.nodes) && parsed.edges && Array.isArray(parsed.edges)) {
+          knowledgeGraph = parsed;
+        } else {
+          logger.warn("Knowledge graph missing required nodes or edges arrays");
+        }
       } catch (e) {
         logger.warn("Failed to parse knowledge graph from AI response");
       }
@@ -288,13 +293,20 @@ Your output must comply strictly with these criteria:
               responseSchema: getSchemaForFormat(format)
             }
           });
-          return JSON.parse(cleanJsonString(generation.text || "{}")).items || [];
+          try {
+            const parsed = JSON.parse(cleanJsonString(generation.text || "{}"));
+            return parsed.items || [];
+          } catch (error) {
+            logger.error(`Failed to parse JSON from model ${modelName}:`, error);
+            return [];
+          }
         });
 
         const allModelResults = await Promise.allSettled(modelPromises);
         const resultsData = allModelResults
           .filter(r => r.status === 'fulfilled')
-          .map(r => (r as PromiseFulfilledResult<any[]>).value);
+          .map(r => (r as PromiseFulfilledResult<any[]>).value)
+          .filter(items => items.length > 0);
 
         if (resultsData.length === 0) return [];
 
@@ -316,7 +328,7 @@ For each item index:
 Output a JSON object: { "refinedItems": [ { "index": number, "item": { ... }, "consensusReached": boolean, "reviewRequired": boolean } ] }
 
 Items from Model 0: ${JSON.stringify(resultsData[0])}
-Items from Model 1: ${JSON.stringify(resultsData[1])}
+${resultsData.length > 1 ? `Items from Model 1: ${JSON.stringify(resultsData[1])}` : ''}
 ...`;
 
           const consensusResponse = await ai.models.generateContent({
@@ -328,21 +340,25 @@ Items from Model 1: ${JSON.stringify(resultsData[1])}
             }
           });
 
-          const consensusData = JSON.parse(cleanJsonString(consensusResponse.text || "{}"));
-          const refinedItems = consensusData.refinedItems || [];
+          try {
+            const consensusData = JSON.parse(cleanJsonString(consensusResponse.text || "{}"));
+            const refinedItems = consensusData.refinedItems || [];
 
-          refinedItems.forEach((entry: any) => {
-            if (typeof entry.index === 'number' && items[entry.index]) {
-              items[entry.index] = entry.item;
-              // Inject a flag for the UI to highlight "High Entropy" / Disagreement
-              if (entry.reviewRequired) {
-                items[entry.index].metadata = { 
-                  ...items[entry.index].metadata, 
-                  intent: `REVIEW: ${items[entry.index].metadata.intent}` 
-                };
+            refinedItems.forEach((entry: any) => {
+              if (typeof entry.index === 'number' && items[entry.index]) {
+                items[entry.index] = entry.item;
+                // Inject a flag for the UI to highlight "High Entropy" / Disagreement
+                if (entry.reviewRequired) {
+                  items[entry.index].metadata = { 
+                    ...items[entry.index].metadata, 
+                    intent: `REVIEW: ${items[entry.index].metadata.intent}` 
+                  };
+                }
               }
-            }
-          });
+            });
+          } catch (error) {
+            logger.error("Failed to parse consensus response:", error);
+          }
         }
 
         // 2. Critic Phase: Audit the synthesized consensus result for logical integrity
@@ -366,16 +382,17 @@ Output a JSON array of critiques, where each object matches the index of the ite
           }
         });
 
-        const judgeData = JSON.parse(cleanJsonString(judgeResponse.text || "{}"));
-        const critiques = judgeData.critiques || [];
+        try {
+          const judgeData = JSON.parse(cleanJsonString(judgeResponse.text || "{}"));
+          const critiques = judgeData.critiques || [];
 
-        // 3. Refinement Phase: Fix items that failed the audit
-        const failedIndices = critiques.filter(c => !c.isValid).map(c => c.index);
+          // 3. Refinement Phase: Fix items that failed the audit
+          const failedIndices = critiques.filter(c => !c.isValid).map(c => c.index);
 
-        if (failedIndices.length > 0) {
-          logger.info(`Refining ${failedIndices.length} items based on critic feedback...`);
-          
-          const refinerPrompt = `You are an expert AI refiner. I will provide you with a set of training items and their corresponding critiques. 
+          if (failedIndices.length > 0) {
+            logger.info(`Refining ${failedIndices.length} items based on critic feedback...`);
+            
+            const refinerPrompt = `You are an expert AI refiner. I will provide you with a set of training items and their corresponding critiques. 
 Rewrite the items to ensure absolute logical precision and high-fidelity reasoning. 
 Preserve the original intent and format. Ensure the 'metadata.reasoning' is now flawless.
 
@@ -386,23 +403,30 @@ Input:
 ${critiques.filter(c => !c.isValid).map(c => `Item Index ${c.index}: ${JSON.stringify(items[c.index])}\nCritique: ${c.critique}`).join("\n\n")}
 `;
 
-          const refinerResponse = await ai.models.generateContent({
-            model: "gemini-1.5-pro",
-            contents: refinerPrompt,
-            config: {
-              temperature: 0.4,
-              responseMimeType: "application/json"
-            }
-          });
+            const refinerResponse = await ai.models.generateContent({
+              model: "gemini-1.5-pro",
+              contents: refinerPrompt,
+              config: {
+                temperature: 0.4,
+                responseMimeType: "application/json"
+              }
+            });
 
-          const refinedData = JSON.parse(cleanJsonString(refinerResponse.text || "{}"));
-          const refinedItems = refinedData.refinedItems || [];
+            try {
+              const refinedData = JSON.parse(cleanJsonString(refinerResponse.text || "{}"));
+              const refinedItems = refinedData.refinedItems || [];
 
-          refinedItems.forEach((entry: any) => {
-            if (typeof entry.index === 'number' && items[entry.index]) {
-              items[entry.index] = entry.item;
+              refinedItems.forEach((entry: any) => {
+                if (typeof entry.index === 'number' && items[entry.index]) {
+                  items[entry.index] = entry.item;
+                }
+              });
+            } catch (error) {
+              logger.error("Failed to parse refiner response:", error);
             }
-          });
+          }
+        } catch (error) {
+          logger.error("Failed to parse judge response:", error);
         }
 
         return items;
@@ -497,7 +521,7 @@ Ensure absolute precision. Keep the JSON perfect.`;
 
     const generateMore = async () => {
       const generation = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-1.5-flash",
         contents: prompt,
         config: {
           systemInstruction,
@@ -508,8 +532,13 @@ Ensure absolute precision. Keep the JSON perfect.`;
       });
 
       const rawJsonText = cleanJsonString(generation.text || "{}");
-      const parsed = JSON.parse(rawJsonText);
-      return parsed.items || [];
+      try {
+        const parsed = JSON.parse(rawJsonText);
+        return parsed.items || [];
+      } catch (error) {
+        logger.error("Failed to parse generate-more response:", error);
+        return [];
+      }
     };
 
     // Apply retry logic with timeout protection for generate-more
