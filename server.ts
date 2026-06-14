@@ -161,20 +161,26 @@ app.post("/api/generate", async (req: Request, res: Response) => {
     // Step 1: Perform Google Search Grounding to research the topic
     logger.info(`Researching topic: "${topic}" via Google Search Grounding...`);
     const searchResponse = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-1.5-flash",
       contents: `You are an elite research engine. Research the following topic exhaustively using Google Search: "${topic}".
 Provide an detailed, authoritative research overview highlighting:
 1. Fundamental concepts, major definitions, and underlying rules.
 2. Scientific formula, code examples, or chronological timelines where applicable.
 3. Solved problems, practical use cases, and contemporary debates/discoveries.
 
-Additionally, output a list of 6 to 8 subtopics. You MUST format this subtopics section at the very end of your response exactly like this:
-[SUBTOPICS] Subtopic A | Subtopic B | Subtopic C | Subtopic D ... [END]`,
+Additionally, output two structured sections at the end:
+1. [SUBTOPICS]: A list of 6 to 8 subtopics separated by '|'.
+2. [KNOWLEDGE_GRAPH]: A JSON object containing 'nodes' (id, label, level) and 'edges' (from, to), representing the pedagogical dependency of these subtopics (which concepts must be learned first).
+
+Format the end of your response exactly like this:
+[SUBTOPICS] Subtopic A | Subtopic B ... [END]
+[KNOWLEDGE_GRAPH] { "nodes": [...], "edges": [...] } [END]`,
       config: {
         tools: [{ googleSearch: {} }],
         temperature: 0.4
       }
     });
+
 
     let researchSummary = searchResponse.text || "";
     const groundingChunks = searchResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
@@ -197,6 +203,18 @@ Additionally, output a list of 6 to 8 subtopics. You MUST format this subtopics 
         .filter(Boolean);
       // Strip subtopics section from customer-facing report
       researchSummary = researchSummary.replace(/\[SUBTOPICS\].*?(\[END\]|$)/s, "").trim();
+    }
+
+    // Extract Knowledge Graph
+    let knowledgeGraph = { nodes: [], edges: [] };
+    const kgMatch = researchSummary.match(/\[KNOWLEDGE_GRAPH\](.*?)(\[END\]|$)/s);
+    if (kgMatch) {
+      try {
+        knowledgeGraph = JSON.parse(kgMatch[1].trim());
+      } catch (e) {
+        logger.warn("Failed to parse knowledge graph from AI response");
+      }
+      researchSummary = researchSummary.replace(/\[KNOWLEDGE_GRAPH\].*?(\[END\]|$)/s, "").trim();
     }
 
     if (subtopics.length === 0) {
@@ -424,7 +442,8 @@ ${critiques.filter(c => !c.isValid).map(c => `Item Index ${c.index}: ${JSON.stri
         topic,
         researchSummary,
         sources,
-        subtopics
+        subtopics,
+        knowledgeGraph
       },
       items: finalItems
     });

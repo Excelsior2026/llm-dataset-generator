@@ -52,6 +52,17 @@ export interface ResearchSource {
   url: string;
 }
 
+export interface SubtopicNode {
+  id: string;
+  label: string;
+  level: number; 
+}
+
+export interface DependencyEdge {
+  from: string; 
+  to: string;   
+}
+
 export interface DatasetGenerationConfig {
   topic: string;
   size: number;
@@ -77,6 +88,10 @@ export interface SearchResultSummary {
   researchSummary: string;
   sources: ResearchSource[];
   subtopics: string[];
+  knowledgeGraph: {
+    nodes: SubtopicNode[];
+    edges: DependencyEdge[];
+  };
 }
 
 export interface APIResponse {
