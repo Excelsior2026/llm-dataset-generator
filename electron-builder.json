@@ -1,0 +1,23 @@
+{
+  "appId": "com.trainengine.ai",
+  "productName": "TrainEngineAI",
+  "directories": {
+    "output": "build"
+  },
+  "mac": {
+    "category": "Public.app-category.DeveloperTool",
+    "target": ["dmg", "zip"]
+  },
+  "win": {
+    "target": ["nsis"]
+  },
+  "linux": {
+    "target": "AppImage"
+  },
+  "files": [
+    "dist/**/*",
+    "main.js",
+    "package.json",
+    "node_modules/**/*"
+  ]
+}
