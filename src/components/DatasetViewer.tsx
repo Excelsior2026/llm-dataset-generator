@@ -3,11 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
-import { DatasetItem, DatasetFormat, AlpacaItem, ShareGPTItem, QAItem, RawItem } from "../types";
+import React, { useState, useMemo } from "react";
+import { DatasetItem, DatasetFormat, ConversationTreeNode, DPOPair } from "../types";
 import { 
   Download, Copy, ClipboardCheck, Trash2, Edit3, PlusCircle, Check, 
-  X, Sparkles, Filter, ChevronDown, ChevronUp, CopyIcon, Layers, Eye, RefreshCw, FileText, Upload, Loader
+  X, Sparkles, Filter, ChevronDown, ChevronUp, CopyIcon, Layers, Eye, RefreshCw, FileText, Upload, Loader,
+  GitBranch, Brain, SortAsc, TreePine, ArrowUpDown, FileJson2
 } from "lucide-react";
 
 interface DatasetViewerProps {
@@ -18,6 +19,15 @@ interface DatasetViewerProps {
   researchSummary: string;
   isLoadingMore: boolean;
   onSynthesizeMore: (count: number) => void;
+  onSelfPlay: () => void;
+  selfPlaying: boolean;
+  onEvolve: (count: number) => void;
+  evolving: boolean;
+  onGenerateTree: () => void;
+  generatingTree: boolean;
+  conversationTree: ConversationTreeNode | null;
+  onClearTree: () => void;
+  modelConfig?: any;
 }
 
 export default function DatasetViewer({ 
@@ -27,7 +37,16 @@ export default function DatasetViewer({
   topic, 
   researchSummary, 
   isLoadingMore, 
-  onSynthesizeMore 
+  onSynthesizeMore,
+  onSelfPlay,
+  selfPlaying,
+  onEvolve,
+  evolving,
+  onGenerateTree,
+  generatingTree,
+  conversationTree,
+  onClearTree,
+  modelConfig,
 }: DatasetViewerProps) {
   
   const [searchTerm, setSearchTerm] = useState("");
@@ -60,6 +79,50 @@ export default function DatasetViewer({
 
   // Synthetic More state
   const [syntheticCount, setSyntheticCount] = useState(2);
+
+  // Evolution state
+  const [evolveCount, setEvolveCount] = useState(2);
+
+  // Sort by complexity toggle
+  const [sortByComplexity, setSortByComplexity] = useState(false);
+
+  // DPO export state
+  const [exportingDPO, setExportingDPO] = useState(false);
+  const [dpoResult, setDPOResult] = useState<DPOPair[] | null>(null);
+
+  // Complexity-sorted items
+  const sortedItems = useMemo(() => {
+    if (!sortByComplexity) return items;
+    const order: Record<string, number> = { novice: 0, basic: 0, intermediate: 1, advanced: 2, expert: 3 };
+    return [...items].sort((a, b) => (order[a.metadata?.complexity] ?? 0) - (order[b.metadata?.complexity] ?? 0));
+  }, [items, sortByComplexity]);
+
+  const displayItems = sortedItems;
+
+  // DPO export handler
+  const handleExportDPO = async () => {
+    if (items.length === 0) return;
+    setExportingDPO(true);
+    try {
+      const res = await fetch("/api/export-dpo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items, modelConfig }),
+      });
+      const data = await res.json();
+      if (res.ok && data.pairs) {
+        setDPOResult(data.pairs);
+        const blob = new Blob([JSON.stringify(data.pairs, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `dpo_pairs_${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch {}
+    setExportingDPO(false);
+  };
 
   // Hugging Face upload state
   const [showHFDialog, setShowHFDialog] = useState(false);
@@ -434,6 +497,45 @@ export default function DatasetViewer({
           >
             <Upload className="w-3.5 h-3.5" />
             <span>HF Hub</span>
+          </button>
+
+          {/* DPO Export Button */}
+          <button
+            onClick={handleExportDPO}
+            disabled={exportingDPO || items.length === 0}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 rounded-lg py-1.5 px-3.5 hover:bg-amber-100 transition cursor-pointer disabled:opacity-50"
+            id="export-dpo"
+            title="Export DPO preference pairs (chosen/rejected)"
+          >
+            {exportingDPO ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <ArrowUpDown className="w-3.5 h-3.5" />}
+            <span>DPO</span>
+          </button>
+
+          {/* Sort by Complexity Toggle */}
+          <button
+            onClick={() => setSortByComplexity(!sortByComplexity)}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs font-semibold rounded-lg py-1.5 px-3.5 transition cursor-pointer ${
+              sortByComplexity
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                : "text-slate-500 bg-white border border-slate-200 hover:bg-slate-50"
+            }`}
+            id="sort-complexity"
+            title="Sort items by complexity (novice → expert)"
+          >
+            <SortAsc className="w-3.5 h-3.5" />
+            <span>{sortByComplexity ? "Sorted" : "Sort"}</span>
+          </button>
+
+          {/* Self-Play Improvement Button */}
+          <button
+            onClick={onSelfPlay}
+            disabled={selfPlaying || items.length === 0}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200 rounded-lg py-1.5 px-3.5 hover:bg-violet-100 transition cursor-pointer disabled:opacity-50"
+            id="btn-selfplay"
+            title="Iteratively judge and refine all items"
+          >
+            {selfPlaying ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
+            <span>{selfPlaying ? "Improving..." : "Self-Play"}</span>
           </button>
         </div>
       </div>
@@ -889,9 +991,10 @@ export default function DatasetViewer({
         )}
       </div>
 
-      {/* SYNTHETIC DATAPOINT EXPANSION PANEL */}
+      {/* SYNTHETIC DATAPOINT EXPANSION + EVOLVE + TREE */}
       {researchSummary && (
-        <div className="px-4 pb-4 border-t border-slate-100 pt-4" id="expansion-pannel">
+        <div className="px-4 pb-4 border-t border-slate-100 pt-4 space-y-3" id="expansion-pannel">
+          {/* Synthesize More */}
           <div className="bg-indigo-50/20 border border-indigo-150 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
               <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
@@ -899,11 +1002,10 @@ export default function DatasetViewer({
                 <span>Synthetic Expansion Engine</span>
               </h3>
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                Appends brand-new, non-overlapping examples based on search grounding context with active redundancy filtering.
+                Generate brand-new examples or evolve existing ones into harder variants.
               </p>
             </div>
-
-            <div className="flex items-center gap-2 pr-1 self-end md:self-auto">
+            <div className="flex items-center gap-2 pr-1 self-end md:self-auto flex-wrap">
               <span className="text-xs font-semibold text-slate-500 shrink-0">Count:</span>
               <select
                 value={syntheticCount}
@@ -914,7 +1016,6 @@ export default function DatasetViewer({
                 <option value="5">5 Records</option>
                 <option value="10">10 Records (Recommended)</option>
               </select>
-
               <button
                 type="button"
                 onClick={() => onSynthesizeMore(syntheticCount)}
@@ -922,17 +1023,75 @@ export default function DatasetViewer({
                 className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 text-white disabled:text-slate-400 py-1.5 px-3.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1 justify-center shrink-0"
               >
                 {isLoadingMore ? (
-                  <>
-                    <RefreshCw className="w-3 h-3 animate-spin" />
-                    <span>Expanding...</span>
-                  </>
+                  <><RefreshCw className="w-3 h-3 animate-spin" /><span>Expanding...</span></>
                 ) : (
-                  <>
-                    <Sparkles className="w-3 h-3 text-white fill-current animate-pulse" />
-                    <span>Synthesize</span>
-                  </>
+                  <><Sparkles className="w-3 h-3 text-white fill-current animate-pulse" /><span>Synthesize</span></>
                 )}
               </button>
+            </div>
+          </div>
+
+          {/* Evolve + Tree row */}
+          <div className="flex flex-wrap gap-3">
+            {/* Evolve Instructions */}
+            <div className="flex items-center gap-2 bg-violet-50/30 border border-violet-150 rounded-xl px-4 py-3 flex-1 min-w-[200px]">
+              <GitBranch className="w-4 h-4 text-violet-500 shrink-0" />
+              <div className="flex-1">
+                <p className="text-xs font-bold text-slate-700">Evolve Instructions</p>
+                <p className="text-[10px] text-slate-400">WizardLM-style hardening</p>
+              </div>
+              <select
+                value={evolveCount}
+                onChange={(e) => setEvolveCount(Number(e.target.value))}
+                className="text-xs bg-white border border-slate-200 rounded-md p-1 font-bold focus:outline-none"
+              >
+                <option value="2">2</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+              </select>
+              <button
+                onClick={() => onEvolve(evolveCount)}
+                disabled={evolving || items.length === 0}
+                className="bg-violet-600 hover:bg-violet-700 disabled:bg-slate-100 text-white disabled:text-slate-400 py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0"
+              >
+                {evolving ? "..." : "Go"}
+              </button>
+            </div>
+
+            {/* Generate Conversation Tree */}
+            <div className="flex items-center gap-2 bg-emerald-50/30 border border-emerald-150 rounded-xl px-4 py-3 flex-1 min-w-[200px]">
+              <TreePine className="w-4 h-4 text-emerald-500 shrink-0" />
+              <div className="flex-1">
+                <p className="text-xs font-bold text-slate-700">Conversation Tree</p>
+                <p className="text-[10px] text-slate-400">Multi-turn branching chat</p>
+              </div>
+              <button
+                onClick={onGenerateTree}
+                disabled={generatingTree}
+                className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-100 text-white disabled:text-slate-400 py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0"
+              >
+                {generatingTree ? "..." : "Generate"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONVERSATION TREE VIEWER */}
+      {conversationTree && (
+        <div className="px-4 pb-4 border-t border-slate-100 pt-4">
+          <div className="bg-emerald-50/30 border border-emerald-200 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                <TreePine className="w-4 h-4 text-emerald-500" />
+                <span>Conversation Tree</span>
+              </h3>
+              <button onClick={onClearTree} className="text-[10px] text-slate-400 hover:text-slate-600 font-medium">
+                Close
+              </button>
+            </div>
+            <div className="space-y-1 font-mono text-xs">
+              <TreeBranch node={conversationTree} depth={0} />
             </div>
           </div>
         </div>
@@ -1260,6 +1419,47 @@ export default function DatasetViewer({
         </div>
       )}
 
+    </div>
+  );
+}
+
+function TreeBranch({ node, depth }: { node: ConversationTreeNode; depth: number }) {
+  const [collapsed, setCollapsed] = useState(depth > 2);
+  const hasBranches = node.branches && node.branches.length > 0;
+  const lineCount = (node.content.match(/\n/g) || []).length + 1;
+  const preview = lineCount > 2 ? node.content.split("\n").slice(0, 2).join("\n") + "..." : node.content;
+
+  return (
+    <div className="relative">
+      <div className="flex items-start gap-2 py-1.5" style={{ paddingLeft: `${depth * 20}px` }}>
+        {hasBranches && (
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="shrink-0 w-4 h-4 flex items-center justify-center text-[9px] text-slate-400 hover:text-slate-600 rounded"
+          >
+            {collapsed ? "+" : "−"}
+          </button>
+        )}
+        <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+          node.role === "user"
+            ? "bg-blue-50 text-blue-600"
+            : "bg-emerald-50 text-emerald-600"
+        }`}>
+          {node.role === "user" ? "U" : "A"}
+        </span>
+        <span className="text-slate-600 whitespace-pre-wrap leading-relaxed min-w-0 flex-1">
+          {collapsed && hasBranches ? preview : node.content}
+        </span>
+      </div>
+      {!collapsed && hasBranches && (
+        <div className="border-l-2 border-slate-100 ml-3">
+          {node.branches.map((child, i) => (
+            <div key={i}>
+              <TreeBranch node={child} depth={depth + 1} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

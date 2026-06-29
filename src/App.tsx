@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import { DatasetGenerationConfig, DatasetItem, SearchResultSummary, APIResponse } from "./types";
+import { DatasetGenerationConfig, DatasetItem, SearchResultSummary, APIResponse, ConversationTreeNode } from "./types";
 import ConfigPanel from "./components/ConfigPanel";
 import ResearchSources from "./components/ResearchSources";
 import MetricsPanel from "./components/MetricsPanel";
@@ -75,6 +75,74 @@ export default function App() {
     setItems([]);
     setResearchSummary(null);
     setConfig(defaultConfig);
+  };
+
+  // Self-play improvement: iteratively judge and refine items
+  const [selfPlaying, setSelfPlaying] = useState(false);
+
+  const handleSelfPlay = async () => {
+    if (items.length === 0) return;
+    setSelfPlaying(true);
+    try {
+      const res = await fetch("/api/self-play", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items, cycles: 3, modelConfig: config.modelConfig }),
+      });
+      const data = await res.json();
+      if (res.ok && data.items) setItems(data.items);
+      else setErrorCode(data.error || "Self-play failed");
+    } catch (err: any) {
+      setErrorCode(err.message);
+    } finally {
+      setSelfPlaying(false);
+    }
+  };
+
+  // Evolve instructions (WizardLM-style hardening)
+  const [evolving, setEvolving] = useState(false);
+
+  const handleEvolve = async (count: number) => {
+    if (items.length === 0) return;
+    setEvolving(true);
+    try {
+      const res = await fetch("/api/evolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items, count, modelConfig: config.modelConfig }),
+      });
+      const data = await res.json();
+      if (res.ok && data.items) setItems(prev => [...data.items, ...prev]);
+      else setErrorCode(data.error || "Evolution failed");
+    } catch (err: any) {
+      setErrorCode(err.message);
+    } finally {
+      setEvolving(false);
+    }
+  };
+
+  // Multi-turn conversation tree generation
+  const [generatingTree, setGeneratingTree] = useState(false);
+  const [conversationTree, setConversationTree] = useState<ConversationTreeNode | null>(null);
+
+  const handleGenerateTree = async () => {
+    const topic = researchSummary?.topic || config.topic;
+    if (!topic.trim()) return;
+    setGeneratingTree(true);
+    try {
+      const res = await fetch("/api/generate-tree", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, depth: 3, branches: 2, modelConfig: config.modelConfig }),
+      });
+      const data = await res.json();
+      if (res.ok && data.tree) setConversationTree(data.tree);
+      else setErrorCode(data.error || "Tree generation failed");
+    } catch (err: any) {
+      setErrorCode(err.message);
+    } finally {
+      setGeneratingTree(false);
+    }
   };
 
   // TRIGGER FIRST MAIN GENERATION
@@ -395,6 +463,15 @@ export default function App() {
               researchSummary={researchSummary?.researchSummary || ""}
               isLoadingMore={isLoadingMore}
               onSynthesizeMore={handleSynthesizeMore}
+              onSelfPlay={handleSelfPlay}
+              selfPlaying={selfPlaying}
+              onEvolve={handleEvolve}
+              evolving={evolving}
+              onGenerateTree={handleGenerateTree}
+              generatingTree={generatingTree}
+              conversationTree={conversationTree}
+              onClearTree={() => setConversationTree(null)}
+              modelConfig={config.modelConfig}
             />
           </div>
 

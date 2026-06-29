@@ -134,3 +134,22 @@ export interface APIResponse {
   summary: SearchResultSummary;
   items: DatasetItem[];
 }
+
+export interface DPOPair {
+  instruction: string;
+  chosen: string;
+  rejected: string;
+  metadata: {
+    source: string;
+    original_id: string;
+    topic?: string;
+  };
+}
+
+export interface ConversationTreeNode {
+  turn: number;
+  role: "user" | "assistant";
+  content: string;
+  branches: ConversationTreeNode[];
+  level?: number;
+}
