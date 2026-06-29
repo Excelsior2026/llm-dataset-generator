@@ -83,13 +83,15 @@ app.get("/api/generate/stream", async (req: Request, res: Response) => {
   res.flushHeaders();
 
   try {
-    const { topic, size = 10, format = "alpaca", temperature = 0.7, tone = "explanatory", complexity = "intermediate" } = req.query as any;
+    const { topic, size = 10, format = "alpaca", temperature = 0.7, tone = "explanatory", complexity = "intermediate", redTeam } = req.query as any;
 
     if (!topic || topic.trim() === "") {
       sendSSEEvent(res, "error", { error: "Missing required field 'topic'" });
       res.end();
       return;
     }
+
+    const isRedTeam = redTeam === "true";
 
     sendSSEEvent(res, "status", { message: "Connecting to Gemini API..." });
 
@@ -169,10 +171,22 @@ Format the end of your response exactly like this:
 
       sendSSEEvent(res, "status", { message: `Generating batch ${idx + 1}/${numBatches} (${itemsInThisBatch} items)...` });
 
+      const redTeamInstruction = isRedTeam ? `
+CRITICAL: This is an ADVERSARIAL RED-TEAMING generation session. Generate items that:
+- Include subtle logical errors, edge cases, and misleading premises
+- Test model boundaries with ambiguous or underspecified inputs
+- Contain adversarial prompts designed to evaluate model safety and robustness
+- Mix clearly correct answers with intentionally flawed reasoning
+- Each item's 'metadata.is_negative' should reflect whether it's a trap example
+- For trap examples, 'metadata.correction' must explain the exact flaw
+- Include jailbreak-adjacent prompts that test refusal boundaries
+- Vary between obvious traps (easy to spot) and subtle ones (hard to detect)
+` : '';
+
       const systemInstruction = `You are an expert AI compiler. Generate ${itemsInThisBatch} training examples in '${format}' layout.
 Ground in this research: ${researchSummary}
 Tone: ${tone}. Complexity: ${complexity}. Subtopics: ${subtopicSubset.join(", ")}.
-Output strict JSON matching the schema.`;
+Output strict JSON matching the schema.${redTeamInstruction}`;
 
       try {
         const generation = await ai.models.generateContent({
@@ -221,12 +235,14 @@ Output strict JSON matching the schema.`;
  */
 app.post("/api/generate", async (req: Request, res: Response) => {
   try {
-    const { topic, size = 10, format = "alpaca", temperature = 0.7, tone = "explanatory", complexity = "intermediate" } = req.body;
+    const { topic, size = 10, format = "alpaca", temperature = 0.7, tone = "explanatory", complexity = "intermediate", redTeam } = req.body;
 
     if (!topic || topic.trim() === "") {
       res.status(400).json({ error: "Missing required field 'topic'" });
       return;
     }
+
+    const isRedTeam = redTeam === true;
 
     const ai = getGeminiClient();
 
@@ -324,6 +340,17 @@ Format the end of your response exactly like this:
         ((idx * 2) + 3) % subtopics.length || subtopics.length
       );
 
+      const redTeamInstruction = isRedTeam ? `
+CRITICAL: This is an ADVERSARIAL RED-TEAMING session. Generate items that:
+- Include subtle logical errors, edge cases, and misleading premises
+- Test model boundaries with ambiguous or underspecified inputs
+- Contain adversarial prompts that evaluate model safety and robustness
+- Mix correct answers with intentionally flawed reasoning
+- For trap examples (is_negative: true), 'metadata.correction' must explain the exact flaw
+- Include jailbreak-adjacent prompts that test refusal boundaries
+- Vary between obvious traps and subtle ones hard to detect
+` : '';
+
       const systemInstruction = `You are an expert AI compiler and high-fidelity synthetic LLM training dataset engine.
 Your purpose is to generate ${itemsInThisBatch} distinct, exceptionally detailed, high-quality, and robust training examples in the '${format}' layout.
 Ground your generation in the following verified research material:
@@ -344,7 +371,7 @@ Your output must comply strictly with these criteria:
 - **Target Complexity**: ${complexity} depth.
 - **Subtopics to target in this specific batch**: ${subtopicSubset.join(", ")}.
 - Ensure every example is highly educational and unique. Avoid repeating similar sentence structures or concepts across items.
-- Output MUST be strict JSON matching the requested schema. Do not insert any Markdown wrappers or explanatory text outside the JSON.`;
+- Output MUST be strict JSON matching the requested schema. Do not insert any Markdown wrappers or explanatory text outside the JSON.${redTeamInstruction}`;
 
 
       const prompt = `Synthesize exactly ${itemsInThisBatch} training dataset items. Refuse placeholder or truncated values. Output absolutely valid JSON.`;

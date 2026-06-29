@@ -250,6 +250,28 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
           </div>
         </div>
 
+        {/* Red-Teaming Mode Toggle */}
+        <div className="border-t border-slate-100 pt-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-slate-500">Adversarial Red-Teaming</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Generate adversarial edge cases and safety evaluation examples</p>
+            </div>
+            <button
+              onClick={() => onChangeConfig({ ...config, redTeam: !config.redTeam })}
+              className={`relative w-10 h-5 rounded-full transition-colors ${
+                config.redTeam ? "bg-red-500" : "bg-slate-200"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-xs transition-transform ${
+                  config.redTeam ? "translate-x-5" : ""
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
         {/* Collapsible Advanced Options */}
         <div className="border-t border-slate-100 pt-3">
           <button

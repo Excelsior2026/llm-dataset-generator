@@ -20,7 +20,8 @@ export default function App() {
     temperature: 0.7,
     systemPromptText: "You are a professional instructor. Generate detailed, structured instruction-following pairs.",
     tone: "explanatory",
-    complexity: "intermediate"
+    complexity: "intermediate",
+    redTeam: false,
   };
 
   const [config, setConfig] = useState<DatasetGenerationConfig>(() => loadConfig() || defaultConfig);
@@ -92,6 +93,7 @@ export default function App() {
       temperature: String(config.temperature),
       tone: config.tone,
       complexity: config.complexity,
+      redTeam: config.redTeam ? "true" : "false",
     });
 
     const eventSource = new EventSource(`/api/generate/stream?${params}`);

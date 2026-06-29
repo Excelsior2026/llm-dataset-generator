@@ -89,6 +89,7 @@ export interface DatasetGenerationConfig {
   systemPromptText: string;
   tone: 'technical' | 'casual' | 'academic' | 'explanatory' | 'socratic';
   complexity: 'basic' | 'intermediate' | 'advanced';
+  redTeam?: boolean;
 }
 
 export interface DatasetMetrics {
