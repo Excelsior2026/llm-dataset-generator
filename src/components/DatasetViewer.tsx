@@ -198,6 +198,15 @@ export default function DatasetViewer({
     if (expandedId === id) setExpandedId(null);
   };
 
+  const handleFeedback = (itemId: string, type: 'positive' | 'negative') => {
+    const updated = items.map(itm =>
+      itm.id === itemId
+        ? { ...itm, feedback: itm.feedback === type ? undefined : type }
+        : itm
+    );
+    onUpdateItems(updated);
+  };
+
   const handleDuplicateItem = (item: DatasetItem) => {
     const duplicated: DatasetItem = {
       ...item,
@@ -369,7 +378,14 @@ export default function DatasetViewer({
           <h3 className="font-bold text-slate-700 text-sm" id="header-records">
             Generated Artifacts Dataset ({items.length} records)
           </h3>
-          <p className="text-[11px] text-slate-500 mt-0.5">Fine-tune, curate, and download compiled target vectors</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            {(() => {
+              const pos = items.filter(i => i.feedback === 'positive').length;
+              const neg = items.filter(i => i.feedback === 'negative').length;
+              if (pos + neg === 0) return "Fine-tune, curate, and download compiled target vectors";
+              return `${pos} approved · ${neg} rejected · ${items.length - pos - neg} unreviewed`;
+            })()}
+          </p>
         </div>
 
         {/* Action downloads list in clean minimal style */}
@@ -729,7 +745,31 @@ export default function DatasetViewer({
                         <h4 className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">
                           <Layers className="w-3 h-3" /> Reasoning Path
                         </h4>
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-0.5 mr-1">
+                            <button
+                              onClick={() => handleFeedback(item.id, 'positive')}
+                              className={`p-0.5 rounded transition-colors ${
+                                item.feedback === 'positive' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-300 hover:text-emerald-500 hover:bg-emerald-50'
+                              }`}
+                              title="Mark as high quality"
+                            >
+                              <svg className="w-3.5 h-3.5" fill={item.feedback === 'positive' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleFeedback(item.id, 'negative')}
+                              className={`p-0.5 rounded transition-colors ${
+                                item.feedback === 'negative' ? 'text-red-500 bg-red-50' : 'text-slate-300 hover:text-red-500 hover:bg-red-50'
+                              }`}
+                              title="Mark as low quality"
+                            >
+                              <svg className="w-3.5 h-3.5" fill={item.feedback === 'negative' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2" />
+                              </svg>
+                            </button>
+                          </div>
                           <span className="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded uppercase">
                             {item.metadata?.intent || "General"}
                           </span>

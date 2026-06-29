@@ -41,6 +41,7 @@ export interface DatasetItem {
   id: string;
   format: DatasetFormat;
   topic?: string;
+  feedback?: 'positive' | 'negative';
   metadata: {
     reasoning: string;
     intent: string;
