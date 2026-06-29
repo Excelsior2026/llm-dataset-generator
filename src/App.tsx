@@ -75,47 +75,79 @@ export default function App() {
   };
 
   // TRIGGER FIRST MAIN GENERATION
-  const handleGenerateDataset = async () => {
+  const handleGenerateDataset = () => {
     if (!config.topic.trim()) return;
 
     setIsLoading(true);
     setErrorCode(null);
-    setLoadingStep("Step 1: Consulting search index for recent grounding facts...");
+    setItems([]);
+    setResearchSummary(null);
+    setLoadingStep("Connecting to generation stream...");
 
-    try {
-      // Small timeout interval simulated for dynamic loading progress
-      const progressTimer = setTimeout(() => {
-        setLoadingStep("Step 2: Dissecting subtopics and formatting schema filters...");
-      }, 3500);
+    // Build query params for SSE endpoint
+    const params = new URLSearchParams({
+      topic: config.topic,
+      size: String(config.size),
+      format: config.format,
+      temperature: String(config.temperature),
+      tone: config.tone,
+      complexity: config.complexity,
+    });
 
-      const progressTimer2 = setTimeout(() => {
-        setLoadingStep("Step 3: Compiling structured batches with parallelized Gemini synthesis...");
-      }, 9000);
+    const eventSource = new EventSource(`/api/generate/stream?${params}`);
 
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config)
-      });
+    let summary: SearchResultSummary | null = null;
 
-      clearTimeout(progressTimer);
-      clearTimeout(progressTimer2);
+    eventSource.addEventListener("status", (e) => {
+      const data = JSON.parse(e.data);
+      setLoadingStep(data.message);
+    });
 
-      const data = await response.json();
+    eventSource.addEventListener("research_done", (e) => {
+      const data = JSON.parse(e.data);
+      summary = {
+        topic: config.topic,
+        researchSummary: data.researchSummary,
+        sources: data.sources,
+        subtopics: data.subtopics,
+        knowledgeGraph: data.knowledgeGraph,
+      };
+    });
 
-      if (!response.ok) {
-        throw new Error(data.error || "A synthesis pipeline breakdown occurred.");
+    eventSource.addEventListener("batch_done", (e) => {
+      const data = JSON.parse(e.data);
+      setItems(prev => [...prev, ...data.items]);
+      setLoadingStep(`Received batch ${data.batchIndex + 1}/${data.totalBatches} (${data.batchSize} items)`);
+    });
+
+    eventSource.addEventListener("complete", (e) => {
+      const data = JSON.parse(e.data);
+      if (data.summary) {
+        setResearchSummary(data.summary);
+      } else if (summary) {
+        setResearchSummary(summary);
       }
+      setLoadingStep("Generation complete!");
+      eventSource.close();
+      setIsLoading(false);
+      setTimeout(() => setLoadingStep(""), 1500);
+    });
 
-      setResearchSummary(data.summary);
-      setItems(data.items);
-    } catch (err: any) {
-      console.error(err);
-      setErrorCode(err.message || "An unresolved error occurred down the pipeline.");
-    } finally {
+    eventSource.addEventListener("error", (e) => {
+      const data = (e as MessageEvent).data ? JSON.parse((e as MessageEvent).data) : { error: "Connection error" };
+      setErrorCode(data.error || "Stream connection error");
+      eventSource.close();
       setIsLoading(false);
       setLoadingStep("");
-    }
+    });
+
+    eventSource.onerror = () => {
+      if (eventSource.readyState === EventSource.CLOSED) {
+        setErrorCode("Stream disconnected unexpectedly");
+        setIsLoading(false);
+        setLoadingStep("");
+      }
+    };
   };
 
   // TRIGGER SYNTHETIC AGGREGATION TO EXPAND LOCAL DATAPOINTS

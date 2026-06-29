@@ -68,8 +68,153 @@ function cleanJsonString(str: string): string {
   return cleaned.trim();
 }
 
-// Optimized format mapping function to reduce duplication
-// Note: Using createItemMapper from utils/index.ts
+// SSE helper to send structured events
+function sendSSEEvent(res: Response, event: string, data: any) {
+  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+/**
+ * SSE Streaming endpoint for real-time generation progress
+ */
+app.get("/api/generate/stream", async (req: Request, res: Response) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  try {
+    const { topic, size = 10, format = "alpaca", temperature = 0.7, tone = "explanatory", complexity = "intermediate" } = req.query as any;
+
+    if (!topic || topic.trim() === "") {
+      sendSSEEvent(res, "error", { error: "Missing required field 'topic'" });
+      res.end();
+      return;
+    }
+
+    sendSSEEvent(res, "status", { message: "Connecting to Gemini API..." });
+
+    const ai = getGeminiClient();
+    sendSSEEvent(res, "status", { message: "Step 1: Consulting search index for recent grounding facts..." });
+
+    const searchResponse = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: `You are an elite research engine. Research the following topic exhaustively using Google Search: "${topic}".
+Provide an detailed, authoritative research overview highlighting:
+1. Fundamental concepts, major definitions, and underlying rules.
+2. Scientific formula, code examples, or chronological timelines where applicable.
+3. Solved problems, practical use cases, and contemporary debates/discoveries.
+
+Additionally, output two structured sections at the end:
+1. [SUBTOPICS]: A list of 6 to 8 subtopics separated by '|'.
+2. [KNOWLEDGE_GRAPH]: A JSON object containing 'nodes' (id, label, level) and 'edges' (from, to).
+
+Format the end of your response exactly like this:
+[SUBTOPICS] Subtopic A | Subtopic B ... [END]
+[KNOWLEDGE_GRAPH] { "nodes": [...], "edges": [...] } [END]`,
+      config: {
+        tools: [{ googleSearch: {} }],
+        temperature: 0.4
+      }
+    });
+
+    let researchSummary = searchResponse.text || "";
+    const groundingChunks = searchResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const sources = groundingChunks
+      .map((chunk: any) => ({ title: chunk?.web?.title || chunk?.title || "Source", url: chunk?.web?.uri || chunk?.uri || "" }))
+      .filter((source: any) => source.url !== "");
+
+    let subtopics: string[] = [];
+    const subtopicMatch = researchSummary.match(/\[SUBTOPICS\](.*?)(\[END\]|$)/s);
+    if (subtopicMatch) {
+      subtopics = subtopicMatch[1].split("|").map(s => s.trim()).filter(Boolean);
+      researchSummary = researchSummary.replace(/\[SUBTOPICS\].*?(\[END\]|$)/s, "").trim();
+    }
+
+    let knowledgeGraph = { nodes: [], edges: [] };
+    const kgMatch = researchSummary.match(/\[KNOWLEDGE_GRAPH\](.*?)(\[END\]|$)/s);
+    if (kgMatch) {
+      try {
+        const parsed = JSON.parse(kgMatch[1].trim());
+        if (parsed.nodes && Array.isArray(parsed.nodes) && parsed.edges && Array.isArray(parsed.edges)) {
+          knowledgeGraph = parsed;
+        }
+      } catch (e) {
+        logger.warn("Failed to parse knowledge graph");
+      }
+      researchSummary = researchSummary.replace(/\[KNOWLEDGE_GRAPH\].*?(\[END\]|$)/s, "").trim();
+    }
+
+    if (subtopics.length === 0) {
+      subtopics = [
+        "Core Foundations", "Advanced Concepts", "Practical Demonstrations",
+        "Historical Background & Milestones", "Contemporary Controversies & Future Work"
+      ];
+    }
+
+    sendSSEEvent(res, "research_done", { researchSummary, sources, subtopics, knowledgeGraph });
+
+    const targetSize = Math.max(1, Math.min(30, Number(size)));
+    const batchSize = 5;
+    const numBatches = Math.ceil(targetSize / batchSize);
+    sendSSEEvent(res, "status", { message: `Step 2: Generating ${targetSize} items in ${numBatches} batches...` });
+
+    const allItems: any[] = [];
+
+    for (let idx = 0; idx < numBatches; idx++) {
+      const itemsInThisBatch = Math.min(batchSize, targetSize - idx * batchSize);
+      const subtopicSubset = subtopics.slice(
+        (idx * 2) % subtopics.length,
+        ((idx * 2) + 3) % subtopics.length || subtopics.length
+      );
+
+      sendSSEEvent(res, "status", { message: `Generating batch ${idx + 1}/${numBatches} (${itemsInThisBatch} items)...` });
+
+      const systemInstruction = `You are an expert AI compiler. Generate ${itemsInThisBatch} training examples in '${format}' layout.
+Ground in this research: ${researchSummary}
+Tone: ${tone}. Complexity: ${complexity}. Subtopics: ${subtopicSubset.join(", ")}.
+Output strict JSON matching the schema.`;
+
+      try {
+        const generation = await ai.models.generateContent({
+          model: "gemini-1.5-flash",
+          contents: `Synthesize exactly ${itemsInThisBatch} training dataset items. Output valid JSON.`,
+          config: { systemInstruction, temperature, responseMimeType: "application/json", responseSchema: getSchemaForFormat(format) }
+        });
+
+        let batchItems: any[] = [];
+        try {
+          const parsed = JSON.parse(cleanJsonString(generation.text || "{}"));
+          batchItems = parsed.items || [];
+        } catch (e) {
+          logger.error(`Batch ${idx} parse error`);
+        }
+
+        sendSSEEvent(res, "batch_done", { batchIndex: idx, totalBatches: numBatches, batchSize: batchItems.length, items: batchItems });
+        allItems.push(...batchItems);
+      } catch (e: any) {
+        sendSSEEvent(res, "batch_error", { batchIndex: idx, error: e.message });
+      }
+    }
+
+    const mapItem = createItemMapper(format);
+    let idCounter = 1;
+    const finalItems = allItems.map((item: any) => {
+      const id = `item-${Date.now()}-${idCounter++}`;
+      return mapItem(item, id, "General Concepts");
+    });
+
+    sendSSEEvent(res, "complete", {
+      summary: { topic, researchSummary, sources, subtopics, knowledgeGraph },
+      items: finalItems
+    });
+
+    res.end();
+  } catch (error: any) {
+    logger.error("SSE Error:", error);
+    sendSSEEvent(res, "error", { error: error.message || "Generation failed" });
+    res.end();
+  }
+});
 
 /**
  * Endpoint to query search grounding and build dataset
