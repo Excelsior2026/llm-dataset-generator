@@ -1,64 +1,113 @@
-const { app, BrowserWindow } = require('electron');
-const path = require('path');
-const { spawn } = require('child_process');
-const logger = require('./src/utils/index').logger; // Note: simplified import for main process
+const { app, BrowserWindow } = require("electron");
+const { fork, spawn } = require("child_process");
+const path = require("path");
 
-let serverProcess;
+let mainWindow = null;
+let serverProcess = null;
+
+const PORT = process.env.PORT || 3000;
+const isDev = process.env.NODE_ENV !== "production" && !app.isPackaged;
 
 function startServer() {
-  // Start the Express server using tsx for development or node for production
-  const isProd = process.env.NODE_ENV === 'production';
-  const command = isProd ? 'node' : 'npx';
-  const args = isProd ? ['dist/server.cjs'] : ['tsx', 'server.ts'];
+  return new Promise((resolve, reject) => {
+    if (isDev) {
+      serverProcess = spawn("npx", ["tsx", "server.ts"], {
+        stdio: ["ignore", "pipe", "pipe"],
+        env: { ...process.env, PORT: String(PORT) },
+      });
+    } else {
+      serverProcess = fork(path.join(__dirname, "dist", "server.cjs"), [], {
+        stdio: ["ignore", "pipe", "pipe"],
+        env: { ...process.env, PORT: String(PORT) },
+      });
+    }
 
-  serverProcess = spawn(command, args, {
-    env: { ...process.env, PORT: 3000 },
-    shell: true
-  });
+    const timeout = setTimeout(() => {
+      resolve();
+    }, 8000);
 
-  serverProcess.stdout.on('data', (data) => {
-    console.log(`Server: ${data}`);
-  });
+    serverProcess.stdout.on("data", (data) => {
+      const text = data.toString();
+      console.log(text.trim());
+      if (text.includes("Server running")) {
+        clearTimeout(timeout);
+        resolve();
+      }
+    });
 
-  serverProcess.stderr.on('data', (data) => {
-    console.error(`Server Error: ${data}`);
+    serverProcess.stderr.on("data", (data) => {
+      console.error(data.toString().trim());
+    });
+
+    serverProcess.on("error", (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
+
+    serverProcess.on("exit", (code) => {
+      clearTimeout(timeout);
+      if (code !== 0 && !mainWindow) {
+        reject(new Error(`Server exited with code ${code}`));
+      }
+    });
   });
 }
 
 function createWindow() {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1280,
-    height: 800,
+    height: 860,
+    minWidth: 900,
+    minHeight: 600,
+    title: "LLM Dataset Generator",
     webPreferences: {
+      preload: path.join(__dirname, "electron", "preload.js"),
       nodeIntegration: false,
       contextIsolation: true,
     },
-    title: 'TrainEngine.ai - Cognitive Dataset Generator',
-    autoHideMenuBar: true
   });
 
-  // In dev mode, load from the Vite server. In prod, load the build index.html
-  const isProd = process.env.NODE_ENV === 'production';
-  if (isProd) {
-    win.loadFile(path.join(__dirname, 'dist/index.html'));
-  } else {
-    win.loadURL('http://localhost:3000');
+  const url = `http://localhost:${PORT}`;
+  mainWindow.loadURL(url);
+
+  if (isDev) {
+    mainWindow.webContents.openDevTools({ mode: "detach" });
   }
 
-  win.on('closed', () => {
-    app.quit();
+  mainWindow.on("closed", () => {
+    mainWindow = null;
   });
 }
 
-app.whenReady().then(() => {
-  startServer();
-  createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+app.whenReady().then(async () => {
+  try {
+    await startServer();
+    createWindow();
+  } catch (err) {
+    console.error("Failed to start server:", err);
+    app.quit();
+  }
 });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+app.on("window-all-closed", () => {
+  if (serverProcess) {
+    serverProcess.kill();
+    serverProcess = null;
+  }
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
+});
+
+app.on("activate", () => {
+  if (mainWindow === null) {
+    createWindow();
+  }
+});
+
+app.on("before-quit", () => {
+  if (serverProcess) {
+    serverProcess.kill();
+    serverProcess = null;
+  }
 });

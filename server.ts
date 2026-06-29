@@ -6,8 +6,10 @@
 import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import dotenv from "dotenv";
-import { GoogleGenAI, Type } from "@google/genai";
 import { withRetry, createTimeoutPromise, createItemMapper, getSchemaForFormat, logger } from "./src/utils/index";
+import { createProvider } from "./src/providers/ProviderFactory";
+import { ProviderConfig, DEFAULT_PROVIDER_CONFIG } from "./src/providers/types";
+import { GeminiProvider } from "./src/providers/GeminiProvider";
 
 dotenv.config();
 
@@ -25,34 +27,26 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   if (!err) return next();
-
   logger.error(`Error in ${req.method} ${req.path}:`, err);
-
-  if (err instanceof Error && err.message.includes("GEMINI_API_KEY")) {
-    res.status(400).json({ error: err.message });
-    return;
-  }
-
-  res.status(500).json({
-    error: "Internal server error during synthesis pipeline"
-  });
+  res.status(500).json({ error: "Internal server error during synthesis pipeline" });
 });
 
-// Lazy initializer for Google GenAI to handle missing keys gracefully on startup.
-function getGeminiClient(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey.trim() === "") {
-    throw new Error("GEMINI_API_KEY is not configured in the environment. Please add it in the Secrets panel (Settings > Secrets).");
+function parseModelConfig(query: Record<string, any>): ProviderConfig {
+  const raw = query.modelConfig;
+  if (!raw) return DEFAULT_PROVIDER_CONFIG;
+  try {
+    const mc = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return {
+      research: { ...DEFAULT_PROVIDER_CONFIG.research, ...mc.research },
+      generation: { ...DEFAULT_PROVIDER_CONFIG.generation, ...mc.generation },
+      scoring: { ...DEFAULT_PROVIDER_CONFIG.scoring, ...mc.scoring },
+    };
+  } catch {
+    return DEFAULT_PROVIDER_CONFIG;
   }
-  return new GoogleGenAI({
-    apiKey: apiKey,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
-      }
-    }
-  });
 }
+
+
 
 // Clean JSON response helper
 function cleanJsonString(str: string): string {
@@ -83,7 +77,7 @@ app.get("/api/generate/stream", async (req: Request, res: Response) => {
   res.flushHeaders();
 
   try {
-    const { topic, size = 10, format = "alpaca", temperature = 0.7, tone = "explanatory", complexity = "intermediate", redTeam, primaryTopic, secondaryTopic } = req.query as any;
+    const { topic, size = "10", format = "alpaca", temperature = "0.7", tone = "explanatory", complexity = "intermediate", redTeam, primaryTopic, secondaryTopic } = req.query as Record<string, string>;
 
     if (!topic || topic.trim() === "") {
       sendSSEEvent(res, "error", { error: "Missing required field 'topic'" });
@@ -93,16 +87,30 @@ app.get("/api/generate/stream", async (req: Request, res: Response) => {
 
     const isRedTeam = redTeam === "true";
     const isCrossDomain = secondaryTopic && secondaryTopic !== "";
+    const temp = parseFloat(temperature) || 0.7;
+    const modelConfig = parseModelConfig(req.query);
 
-    sendSSEEvent(res, "status", { message: "Connecting to Gemini API..." });
+    const researchProvider = createProvider(modelConfig.research);
+    const genProvider = createProvider(modelConfig.generation);
 
-    const ai = getGeminiClient();
-    sendSSEEvent(res, "status", { message: "Step 1: Consulting search index for recent grounding facts..." });
+    const usesGeminiResearch = modelConfig.research.provider === "gemini" && process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY";
 
-    const searchResponse = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: `You are an elite research engine. Research the following topic exhaustively using Google Search: "${topic}".
-Provide an detailed, authoritative research overview highlighting:
+    if (usesGeminiResearch) {
+      sendSSEEvent(res, "status", { message: "Step 1: Searching the web for recent grounding facts..." });
+    } else {
+      sendSSEEvent(res, "status", { message: `Step 1: Researching topic using ${modelConfig.research.provider} (${modelConfig.research.model})...` });
+    }
+
+    let researchSummary: string;
+    let sources: { title: string; url: string }[] = [];
+    let subtopics: string[] = [];
+    let knowledgeGraph = { nodes: [] as any[], edges: [] as any[] };
+
+    if (usesGeminiResearch) {
+      const geminiProvider = researchProvider as GeminiProvider;
+      const searchResult = await geminiProvider.generateWithSearch({
+        prompt: `You are an elite research engine. Research the following topic exhaustively using Google Search: "${topic}".
+Provide a detailed, authoritative research overview highlighting:
 1. Fundamental concepts, major definitions, and underlying rules.
 2. Scientific formula, code examples, or chronological timelines where applicable.
 3. Solved problems, practical use cases, and contemporary debates/discoveries.
@@ -114,26 +122,23 @@ Additionally, output two structured sections at the end:
 Format the end of your response exactly like this:
 [SUBTOPICS] Subtopic A | Subtopic B ... [END]
 [KNOWLEDGE_GRAPH] { "nodes": [...], "edges": [...] } [END]`,
-      config: {
-        tools: [{ googleSearch: {} }],
-        temperature: 0.4
-      }
-    });
+      });
+      researchSummary = searchResult.text || "";
+      sources = searchResult.sources;
+    } else {
+      researchSummary = await researchProvider.generate({
+        prompt: `Research the following topic thoroughly and provide a detailed overview:\n\nTopic: "${topic}"\n\nCover the following aspects:\n1. Fundamental concepts, major definitions, and underlying rules.\n2. Practical use cases and applications.\n3. Key subtopics and related concepts.\n\nAt the end of your response, include:\n[SUBTOPICS] Subtopic A | Subtopic B | Subtopic C | Subtopic D | Subtopic E | Subtopic F [END]\n\nThen include a knowledge graph as JSON:\n[KNOWLEDGE_GRAPH] { "nodes": [{"id":"core","label":"Core Concepts","level":0}, {"id":"adv","label":"Advanced Topics","level":1}], "edges": [{"from":"core","to":"adv"}] } [END]`,
+        systemPrompt: "You are a research assistant. Provide factual, well-structured information.",
+        temperature: 0.4,
+      });
+    }
 
-    let researchSummary = searchResponse.text || "";
-    const groundingChunks = searchResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-    const sources = groundingChunks
-      .map((chunk: any) => ({ title: chunk?.web?.title || chunk?.title || "Source", url: chunk?.web?.uri || chunk?.uri || "" }))
-      .filter((source: any) => source.url !== "");
-
-    let subtopics: string[] = [];
     const subtopicMatch = researchSummary.match(/\[SUBTOPICS\](.*?)(\[END\]|$)/s);
     if (subtopicMatch) {
       subtopics = subtopicMatch[1].split("|").map(s => s.trim()).filter(Boolean);
       researchSummary = researchSummary.replace(/\[SUBTOPICS\].*?(\[END\]|$)/s, "").trim();
     }
 
-    let knowledgeGraph = { nodes: [], edges: [] };
     const kgMatch = researchSummary.match(/\[KNOWLEDGE_GRAPH\](.*?)(\[END\]|$)/s);
     if (kgMatch) {
       try {
@@ -156,7 +161,7 @@ Format the end of your response exactly like this:
 
     sendSSEEvent(res, "research_done", { researchSummary, sources, subtopics, knowledgeGraph });
 
-    const targetSize = Math.max(1, Math.min(30, Number(size)));
+    const targetSize = Math.max(1, Math.min(30, parseInt(size) || 10));
     const batchSize = 5;
     const numBatches = Math.ceil(targetSize / batchSize);
     sendSSEEvent(res, "status", { message: `Step 2: Generating ${targetSize} items in ${numBatches} batches...` });
@@ -201,15 +206,17 @@ Tone: ${tone}. Complexity: ${complexity}. Subtopics: ${subtopicSubset.join(", ")
 Output strict JSON matching the schema.${redTeamInstruction}${crossDomainInstruction}`;
 
       try {
-        const generation = await ai.models.generateContent({
-          model: "gemini-1.5-flash",
-          contents: `Synthesize exactly ${itemsInThisBatch} training dataset items. Output valid JSON.`,
-          config: { systemInstruction, temperature, responseMimeType: "application/json", responseSchema: getSchemaForFormat(format) }
+        const genResult = await genProvider.generate({
+          prompt: `Synthesize exactly ${itemsInThisBatch} training dataset items. Output valid JSON.`,
+          systemPrompt: systemInstruction,
+          temperature: temp,
+          responseMimeType: "application/json",
+          responseSchema: getSchemaForFormat(format),
         });
 
         let batchItems: any[] = [];
         try {
-          const parsed = JSON.parse(cleanJsonString(generation.text || "{}"));
+          const parsed = JSON.parse(cleanJsonString(genResult || "{}"));
           batchItems = parsed.items || [];
         } catch (e) {
           logger.error(`Batch ${idx} parse error`);
@@ -231,7 +238,7 @@ Output strict JSON matching the schema.${redTeamInstruction}${crossDomainInstruc
 
     sendSSEEvent(res, "complete", {
       summary: { topic, researchSummary, sources, subtopics, knowledgeGraph },
-      items: finalItems
+      items: finalItems,
     });
 
     res.end();
@@ -255,67 +262,59 @@ app.post("/api/generate", async (req: Request, res: Response) => {
     }
 
     const isRedTeam = redTeam === true;
+    const modelConfig = parseModelConfig(req.body);
+    const researchProvider = createProvider(modelConfig.research);
+    const genProvider = createProvider(modelConfig.generation);
+    const scoringProvider = createProvider(modelConfig.scoring);
 
-    const ai = getGeminiClient();
+    const usesGeminiResearch = modelConfig.research.provider === "gemini" && process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY";
 
-    // Step 1: Perform Google Search Grounding to research the topic
-    logger.info(`Researching topic: "${topic}" via Google Search Grounding...`);
-    const searchResponse = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: `You are an elite research engine. Research the following topic exhaustively using Google Search: "${topic}".
-Provide an detailed, authoritative research overview highlighting:
+    // Step 1: Research the topic
+    logger.info(`Researching topic: "${topic}"...`);
+    let researchSummary: string;
+    let sources: { title: string; url: string }[] = [];
+
+    if (usesGeminiResearch) {
+      const geminiProvider = researchProvider as GeminiProvider;
+      const searchResult = await geminiProvider.generateWithSearch({
+        prompt: `You are an elite research engine. Research the following topic exhaustively using Google Search: "${topic}".
+Provide a detailed, authoritative research overview highlighting:
 1. Fundamental concepts, major definitions, and underlying rules.
 2. Scientific formula, code examples, or chronological timelines where applicable.
 3. Solved problems, practical use cases, and contemporary debates/discoveries.
 
 Additionally, output two structured sections at the end:
 1. [SUBTOPICS]: A list of 6 to 8 subtopics separated by '|'.
-2. [KNOWLEDGE_GRAPH]: A JSON object containing 'nodes' (id, label, level) and 'edges' (from, to), representing the pedagogical dependency of these subtopics (which concepts must be learned first).
+2. [KNOWLEDGE_GRAPH]: A JSON object containing 'nodes' (id, label, level) and 'edges' (from, to), representing the pedagogical dependency of these subtopics.
 
 Format the end of your response exactly like this:
 [SUBTOPICS] Subtopic A | Subtopic B ... [END]
 [KNOWLEDGE_GRAPH] { "nodes": [...], "edges": [...] } [END]`,
-      config: {
-        tools: [{ googleSearch: {} }],
-        temperature: 0.4
-      }
-    });
+      });
+      researchSummary = searchResult.text || "";
+      sources = searchResult.sources;
+    } else {
+      researchSummary = await researchProvider.generate({
+        prompt: `Research the following topic thoroughly and provide a detailed overview:\n\nTopic: "${topic}"\n\nCover:\n1. Fundamental concepts, major definitions, and underlying rules.\n2. Practical use cases and applications.\n3. Key subtopics and related concepts.\n\nAt the end, include:\n[SUBTOPICS] Subtopic A | Subtopic B | Subtopic C | Subtopic D | Subtopic E | Subtopic F [END]\n[KNOWLEDGE_GRAPH] { "nodes": [{"id":"core","label":"Core Concepts","level":0}, {"id":"adv","label":"Advanced Topics","level":1}], "edges": [{"from":"core","to":"adv"}] } [END]`,
+        systemPrompt: "You are a research assistant. Provide factual, well-structured information.",
+        temperature: 0.4,
+      });
+    }
 
-
-    let researchSummary = searchResponse.text || "";
-    const groundingChunks = searchResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-    
-    // Parse sources
-    const sources = groundingChunks
-      .map((chunk: any) => ({
-        title: chunk?.web?.title || chunk?.title || "Search Grounding Source",
-        url: chunk?.web?.uri || chunk?.uri || ""
-      }))
-      .filter((source: any) => source.url !== "");
-
-    // Extract subtopics
     let subtopics: string[] = [];
     const subtopicMatch = researchSummary.match(/\[SUBTOPICS\](.*?)(\[END\]|$)/s);
     if (subtopicMatch) {
-      subtopics = subtopicMatch[1]
-        .split("|")
-        .map(s => s.trim())
-        .filter(Boolean);
-      // Strip subtopics section from customer-facing report
+      subtopics = subtopicMatch[1].split("|").map(s => s.trim()).filter(Boolean);
       researchSummary = researchSummary.replace(/\[SUBTOPICS\].*?(\[END\]|$)/s, "").trim();
     }
 
-    // Extract Knowledge Graph
-    let knowledgeGraph = { nodes: [], edges: [] };
+    let knowledgeGraph = { nodes: [] as any[], edges: [] as any[] };
     const kgMatch = researchSummary.match(/\[KNOWLEDGE_GRAPH\](.*?)(\[END\]|$)/s);
     if (kgMatch) {
       try {
         const parsed = JSON.parse(kgMatch[1].trim());
-        // Validate that nodes and edges arrays exist
         if (parsed.nodes && Array.isArray(parsed.nodes) && parsed.edges && Array.isArray(parsed.edges)) {
           knowledgeGraph = parsed;
-        } else {
-          logger.warn("Knowledge graph missing required nodes or edges arrays");
         }
       } catch (e) {
         logger.warn("Failed to parse knowledge graph from AI response");
@@ -325,28 +324,22 @@ Format the end of your response exactly like this:
 
     if (subtopics.length === 0) {
       subtopics = [
-        "Core Foundations",
-        "Advanced Concepts",
-        "Practical Demonstrations",
-        "Historical Background & Milestones",
-        "Contemporary Controversies & Future Work"
+        "Core Foundations", "Advanced Concepts", "Practical Demonstrations",
+        "Historical Background & Milestones", "Contemporary Controversies & Future Work"
       ];
     }
 
     logger.info(`Discovered Subtopics: ${subtopics}`);
 
-    // Step 2: Batch Generation of dataset items with retry logic
-    const targetSize = Math.max(1, Math.min(30, size)); // Protect limits (max 30)
+    // Step 2: Batch Generation with judge/refinement pipeline
+    const targetSize = Math.max(1, Math.min(30, size));
     const batchSize = 5;
     const numBatches = Math.ceil(targetSize / batchSize);
-    
+
     logger.info(`Synthesizing dataset of ${targetSize} items in ${numBatches} parallel batches...`);
 
-    // Create batch promises with timeout protection
     const batchPromises = Array.from({ length: numBatches }).map(async (_, idx) => {
       const itemsInThisBatch = Math.min(batchSize, targetSize - idx * batchSize);
-      
-      // Determine subset of subtopics for this specific batch to ensure high entropy/diversity
       const subtopicSubset = subtopics.slice(
         (idx * 2) % subtopics.length,
         ((idx * 2) + 3) % subtopics.length || subtopics.length
@@ -385,97 +378,34 @@ Your output must comply strictly with these criteria:
 - Ensure every example is highly educational and unique. Avoid repeating similar sentence structures or concepts across items.
 - Output MUST be strict JSON matching the requested schema. Do not insert any Markdown wrappers or explanatory text outside the JSON.${redTeamInstruction}`;
 
-
       const prompt = `Synthesize exactly ${itemsInThisBatch} training dataset items. Refuse placeholder or truncated values. Output absolutely valid JSON.`;
 
       const generateBatch = async () => {
-        // 1. Multi-Model Generation for Consensus
-        const consensusModels = ["gemini-1.5-flash", "gemini-1.5-pro"]; // Use different model tiers for cross-verification
-        
-        logger.info(`Executing multi-model consensus generation using: ${consensusModels.join(", ")}...`);
-        
-        const modelPromises = consensusModels.map(async (modelName) => {
-          const generation = await ai.models.generateContent({
-            model: modelName,
-            contents: prompt,
-            config: {
-              systemInstruction: systemInstruction,
-              temperature: temperature,
-              responseMimeType: "application/json",
-              responseSchema: getSchemaForFormat(format)
-            }
-          });
-          try {
-            const parsed = JSON.parse(cleanJsonString(generation.text || "{}"));
-            return parsed.items || [];
-          } catch (error) {
-            logger.error(`Failed to parse JSON from model ${modelName}:`, error);
-            return [];
-          }
+        // Single-model generation (multi-model consensus skipped for local providers)
+        logger.info(`Generating batch ${idx} with ${modelConfig.generation.provider} (${modelConfig.generation.model})...`);
+
+        const genResult = await genProvider.generate({
+          prompt,
+          systemPrompt: systemInstruction,
+          temperature,
+          responseMimeType: "application/json",
+          responseSchema: getSchemaForFormat(format),
         });
 
-        const allModelResults = await Promise.allSettled(modelPromises);
-        const resultsData = allModelResults
-          .filter(r => r.status === 'fulfilled')
-          .map(r => (r as PromiseFulfilledResult<any[]>).value)
-          .filter(items => items.length > 0);
-
-        if (resultsData.length === 0) return [];
-
-        // Use the first successful model as the baseline, then analyze consensus
-        let items = resultsData[0];
-
-        if (resultsData.length > 1) {
-          logger.info(`Analyzing logic consensus across ${resultsData.length} models...`);
-          
-          // Consensus analysis prompt
-          const consensusPrompt = `You are a logic consensus engine. I will provide you with multiple versions of the same training dataset batch generated by different LLMs.
-Your task is to compare the 'metadata.reasoning' and 'output' of each version.
-
-For each item index:
-1. Determine if the models agree on the logical path.
-2. If there is a discrepancy, identify which version is more robust or synthesize a "Golden Version" that combines the strengths of both.
-3. Mark the item as 'requires_review: true' if the models fundamentally disagree on the factual answer.
-
-Output a JSON object: { "refinedItems": [ { "index": number, "item": { ... }, "consensusReached": boolean, "reviewRequired": boolean } ] }
-
-Items from Model 0: ${JSON.stringify(resultsData[0])}
-${resultsData.length > 1 ? `Items from Model 1: ${JSON.stringify(resultsData[1])}` : ''}
-...`;
-
-          const consensusResponse = await ai.models.generateContent({
-            model: "gemini-1.5-pro",
-            contents: consensusPrompt,
-            config: {
-              temperature: 0.2,
-              responseMimeType: "application/json"
-            }
-          });
-
-          try {
-            const consensusData = JSON.parse(cleanJsonString(consensusResponse.text || "{}"));
-            const refinedItems = consensusData.refinedItems || [];
-
-            refinedItems.forEach((entry: any) => {
-              if (typeof entry.index === 'number' && items[entry.index]) {
-                items[entry.index] = entry.item;
-                // Inject a flag for the UI to highlight "High Entropy" / Disagreement
-                if (entry.reviewRequired) {
-                  items[entry.index].metadata = { 
-                    ...items[entry.index].metadata, 
-                    intent: `REVIEW: ${items[entry.index].metadata.intent}` 
-                  };
-                }
-              }
-            });
-          } catch (error) {
-            logger.error("Failed to parse consensus response:", error);
-          }
+        let items: any[] = [];
+        try {
+          const parsed = JSON.parse(cleanJsonString(genResult || "{}"));
+          items = parsed.items || [];
+        } catch (error) {
+          logger.error(`Failed to parse JSON from generation:`, error);
+          return [];
         }
 
-        // 2. Critic Phase: Audit the synthesized consensus result for logical integrity
+        if (items.length === 0) return [];
+
+        // Judge Phase: Audit the generated items
         logger.info(`Auditing batch of ${items.length} items...`);
-        const judgePrompt = `You are a world-class logic auditor. Review these ${items.length} training items. 
+        const judgePrompt = `You are a world-class logic auditor. Review these ${items.length} training items.
 For each item, identify:
 1. Logical gaps in the 'metadata.reasoning' path.
 2. Factual inaccuracies.
@@ -485,67 +415,56 @@ For each item, identify:
 Output a JSON array of critiques, where each object matches the index of the item:
 { "critiques": [ { "index": 0, "isValid": boolean, "critique": "detailed feedback" }, ... ] }`;
 
-        const judgeResponse = await ai.models.generateContent({
-          model: "gemini-1.5-flash",
-          contents: `${judgePrompt}\n\nItems to audit:\n${JSON.stringify(items)}`,
-          config: {
-            temperature: 0.2,
-            responseMimeType: "application/json"
-          }
-        });
-
         try {
-          const judgeData = JSON.parse(cleanJsonString(judgeResponse.text || "{}"));
+          const judgeResult = await scoringProvider.generate({
+            prompt: `${judgePrompt}\n\nItems to audit:\n${JSON.stringify(items)}`,
+            temperature: 0.2,
+            responseMimeType: "application/json",
+          });
+
+          const judgeData = JSON.parse(cleanJsonString(judgeResult || "{}"));
           const critiques = judgeData.critiques || [];
 
-          // 3. Refinement Phase: Fix items that failed the audit
-          const failedIndices = critiques.filter(c => !c.isValid).map(c => c.index);
-
+          // Refinement Phase: Fix items that failed the audit
+          const failedIndices = critiques.filter((c: any) => !c.isValid).map((c: any) => c.index);
           if (failedIndices.length > 0) {
             logger.info(`Refining ${failedIndices.length} items based on critic feedback...`);
-            
-            const refinerPrompt = `You are an expert AI refiner. I will provide you with a set of training items and their corresponding critiques. 
-Rewrite the items to ensure absolute logical precision and high-fidelity reasoning. 
+
+            const refinerPrompt = `You are an expert AI refiner. I will provide you with a set of training items and their corresponding critiques.
+Rewrite the items to ensure absolute logical precision and high-fidelity reasoning.
 Preserve the original intent and format. Ensure the 'metadata.reasoning' is now flawless.
 
 You MUST output a JSON object containing a 'refinedItems' array, where each object includes the 'index' of the original item it is replacing.
 Format: { "refinedItems": [ { "index": 0, "item": { ...original schema... } }, ... ] }
 
 Input:
-${critiques.filter(c => !c.isValid).map(c => `Item Index ${c.index}: ${JSON.stringify(items[c.index])}\nCritique: ${c.critique}`).join("\n\n")}
-`;
+${critiques.filter((c: any) => !c.isValid).map((c: any) => `Item Index ${c.index}: ${JSON.stringify(items[c.index])}\nCritique: ${c.critique}`).join("\n\n")}`;
 
-            const refinerResponse = await ai.models.generateContent({
-              model: "gemini-1.5-pro",
-              contents: refinerPrompt,
-              config: {
+              const refinerResult = await genProvider.generate({
+                prompt: refinerPrompt,
                 temperature: 0.4,
-                responseMimeType: "application/json"
-              }
-            });
-
-            try {
-              const refinedData = JSON.parse(cleanJsonString(refinerResponse.text || "{}"));
-              const refinedItems = refinedData.refinedItems || [];
-
-              refinedItems.forEach((entry: any) => {
-                if (typeof entry.index === 'number' && items[entry.index]) {
-                  items[entry.index] = entry.item;
-                }
+                responseMimeType: "application/json",
               });
-            } catch (error) {
-              logger.error("Failed to parse refiner response:", error);
-            }
+
+              try {
+                const refinedData = JSON.parse(cleanJsonString(refinerResult || "{}"));
+                const refinedItems = refinedData.refinedItems || [];
+                refinedItems.forEach((entry: any) => {
+                  if (typeof entry.index === 'number' && items[entry.index]) {
+                    items[entry.index] = entry.item;
+                  }
+                });
+              } catch (error) {
+                logger.error("Failed to parse refiner response:", error);
+              }
           }
         } catch (error) {
-          logger.error("Failed to parse judge response:", error);
+          logger.error("Failed to run judge/refinement:", error);
         }
 
         return items;
       };
 
-
-      // Apply retry logic with timeout protection
       return createTimeoutPromise(
         withRetry(generateBatch, 2, 500),
         60000,
@@ -553,11 +472,9 @@ ${critiques.filter(c => !c.isValid).map(c => `Item Index ${c.index}: ${JSON.stri
       );
     });
 
-    // Execute all batches in parallel with error isolation
     const results = await Promise.allSettled(batchPromises);
     const rawItems: any[] = [];
 
-    // Collect successful results and log failures
     results.forEach((result, idx) => {
       if (result.status === 'fulfilled') {
         rawItems.push(...result.value);
@@ -570,7 +487,6 @@ ${critiques.filter(c => !c.isValid).map(c => `Item Index ${c.index}: ${JSON.stri
       throw new Error("All batch generations failed. Unable to create dataset.");
     }
 
-    // Step 3: Map items to unique identifiers and format types
     const mapItem = createItemMapper(format);
     let idCounter = 1;
     const finalItems = rawItems.map((item: any) => {
@@ -579,14 +495,8 @@ ${critiques.filter(c => !c.isValid).map(c => `Item Index ${c.index}: ${JSON.stri
     });
 
     res.json({
-      summary: {
-        topic,
-        researchSummary,
-        sources,
-        subtopics,
-        knowledgeGraph
-      },
-      items: finalItems
+      summary: { topic, researchSummary, sources, subtopics, knowledgeGraph },
+      items: finalItems,
     });
   } catch (error: any) {
     logger.error("Synthesize breakdown:", error);
@@ -606,7 +516,8 @@ app.post("/api/generate-more", async (req: Request, res: Response) => {
       return;
     }
 
-    const ai = getGeminiClient();
+    const modelConfig = parseModelConfig(req.body);
+    const genProvider = createProvider(modelConfig.generation);
 
     const systemInstruction = `You are an expert AI synthetic text compiler.
 Generate exactly ${count} completely brand-new, unique and detailed training dataset items in the '${format}' layout.
@@ -632,18 +543,15 @@ Ensure absolute precision. Keep the JSON perfect.`;
     const prompt = `Generate ${count} brand-new additional dataset items matching the JSON schema.`;
 
     const generateMore = async () => {
-      const generation = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: prompt,
-        config: {
-          systemInstruction,
-          temperature: 0.8,
-          responseMimeType: "application/json",
-          responseSchema: getSchemaForFormat(format)
-        }
+      const genResult = await genProvider.generate({
+        prompt,
+        systemPrompt: systemInstruction,
+        temperature: 0.8,
+        responseMimeType: "application/json",
+        responseSchema: getSchemaForFormat(format),
       });
 
-      const rawJsonText = cleanJsonString(generation.text || "{}");
+      const rawJsonText = cleanJsonString(genResult || "{}");
       try {
         const parsed = JSON.parse(rawJsonText);
         return parsed.items || [];
@@ -653,14 +561,12 @@ Ensure absolute precision. Keep the JSON perfect.`;
       }
     };
 
-    // Apply retry logic with timeout protection for generate-more
     const rawItems = await createTimeoutPromise(
       withRetry(generateMore, 2, 500),
       60000,
       "Additional items generation timed out"
     );
 
-    // Use the same optimized mapper
     const mapItem = createItemMapper(format);
     let idCounter = 1;
     const finalItems = rawItems.map((item: any) => {

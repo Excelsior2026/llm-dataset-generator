@@ -102,11 +102,28 @@ export default function App() {
       redTeam: config.redTeam ? "true" : "false",
       primaryTopic: config.topic,
       secondaryTopic: config.secondaryTopic || "",
+      modelConfig: JSON.stringify(config.modelConfig || {
+        research: { provider: "ollama", model: "llama3.2:3b", baseUrl: "http://localhost:11434" },
+        generation: { provider: "ollama", model: "qwen2.5:7b", baseUrl: "http://localhost:11434" },
+        scoring: { provider: "ollama", model: "llama3.2:3b", baseUrl: "http://localhost:11434" },
+      }),
     });
+
+    let summary: SearchResultSummary | null = null;
+    let serverErrorReceived = false;
+    let completed = false;
 
     const eventSource = new EventSource(`/api/generate/stream?${params}`);
 
-    let summary: SearchResultSummary | null = null;
+    const timeout = setTimeout(() => {
+      if (!completed) {
+        serverErrorReceived = true;
+        setErrorCode("Stream timed out — no response from server. Check your GEMINI_API_KEY.");
+        eventSource.close();
+        setIsLoading(false);
+        setLoadingStep("");
+      }
+    }, 30000);
 
     eventSource.addEventListener("status", (e) => {
       const data = JSON.parse(e.data);
@@ -132,6 +149,8 @@ export default function App() {
     });
 
     eventSource.addEventListener("complete", (e) => {
+      completed = true;
+      clearTimeout(timeout);
       const data = JSON.parse(e.data);
       if (data.summary) {
         setResearchSummary(data.summary);
@@ -145,20 +164,30 @@ export default function App() {
     });
 
     eventSource.addEventListener("error", (e) => {
-      const data = (e as MessageEvent).data ? JSON.parse((e as MessageEvent).data) : { error: "Connection error" };
-      setErrorCode(data.error || "Stream connection error");
-      eventSource.close();
-      setIsLoading(false);
-      setLoadingStep("");
-    });
-
-    eventSource.onerror = () => {
-      if (eventSource.readyState === EventSource.CLOSED) {
+      clearTimeout(timeout);
+      try {
+        const raw = (e as MessageEvent).data;
+        if (raw) {
+          const data = JSON.parse(raw);
+          if (data.error) {
+            serverErrorReceived = true;
+            setErrorCode(data.error);
+            eventSource.close();
+            setIsLoading(false);
+            setLoadingStep("");
+            return;
+          }
+        }
+      } catch {
+        // ignore parse errors for native error events
+      }
+      if (!serverErrorReceived) {
         setErrorCode("Stream disconnected unexpectedly");
+        eventSource.close();
         setIsLoading(false);
         setLoadingStep("");
       }
-    };
+    });
   };
 
   // TRIGGER SYNTHETIC AGGREGATION TO EXPAND LOCAL DATAPOINTS
@@ -187,7 +216,8 @@ export default function App() {
           count: count,
           tone: config.tone,
           complexity: config.complexity,
-          existingPrompts: existingPrompts
+          existingPrompts: existingPrompts,
+          modelConfig: config.modelConfig
         })
       });
 
@@ -398,6 +428,7 @@ function HeaderBar({ errorCode }: HeaderBarProps) {
             <span className="text-[10px] md:text-xs text-slate-400 pl-2 border-l border-slate-200 font-medium hidden sm:inline-block" id="brand-subtitle">
               LLM Dataset Generator
             </span>
+            <span className="text-[9px] text-slate-300 font-mono pl-1.5 hidden sm:inline-block">v1.0.0</span>
           </div>
         </div>
 

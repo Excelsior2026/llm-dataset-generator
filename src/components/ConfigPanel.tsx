@@ -4,8 +4,8 @@
  */
 
 import React, { useState } from "react";
-import { DatasetGenerationConfig, DatasetFormat } from "../types";
-import { Settings, Sliders, Play, RotateCcw, HelpCircle, FileJson, MessageSquare, HelpCircleIcon, Layers, ChevronRight } from "lucide-react";
+import { DatasetGenerationConfig, DatasetFormat, ProviderType, ModelFunctionConfig } from "../types";
+import { Settings, Sliders, Play, RotateCcw, HelpCircle, FileJson, MessageSquare, HelpCircleIcon, Layers, ChevronRight, Cpu } from "lucide-react";
 
 interface ConfigPanelProps {
   config: DatasetGenerationConfig;
@@ -17,6 +17,20 @@ interface ConfigPanelProps {
 
 export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoading, loadingStep }: ConfigPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showModelConfig, setShowModelConfig] = useState(false);
+
+  const mc = config.modelConfig || {
+    research: { provider: "ollama" as ProviderType, model: "llama3.2:3b", baseUrl: "http://localhost:11434" },
+    generation: { provider: "ollama" as ProviderType, model: "qwen2.5:7b", baseUrl: "http://localhost:11434" },
+    scoring: { provider: "ollama" as ProviderType, model: "llama3.2:3b", baseUrl: "http://localhost:11434" },
+  };
+
+  const updateModelFunc = (func: "research" | "generation" | "scoring", partial: Partial<ModelFunctionConfig>) => {
+    onChangeConfig({
+      ...config,
+      modelConfig: { ...mc, [func]: { ...mc[func], ...partial } },
+    });
+  };
 
   // Suggested high-quality training topics to inspire users
   const suggestions = [
@@ -321,6 +335,74 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
                 onChange={(e) => onChangeConfig({ ...config, systemPromptText: e.target.value })}
                 placeholder="Customize details (e.g. Include custom markdown tables, restrict sentences...)"
               />
+            </div>
+          )}
+        </div>
+
+        {/* Model Configuration */}
+        <div className="border-t border-slate-100 pt-3">
+          <button
+            type="button"
+            onClick={() => setShowModelConfig(!showModelConfig)}
+            className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-slate-700 transition-colors uppercase tracking-widest"
+          >
+            <Cpu className="w-3.5 h-3.5" />
+            <span>Model Configuration</span>
+          </button>
+
+          {showModelConfig && (
+            <div className="mt-2.5 space-y-3 animate-fade">
+              {(["research", "generation", "scoring"] as const).map((func) => (
+                <div key={func} className="bg-slate-50 rounded-lg p-3 border border-slate-200 space-y-2">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider capitalize">{func}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-slate-400 font-medium">Provider</label>
+                      <select
+                        value={mc[func].provider}
+                        onChange={(e) => updateModelFunc(func, { provider: e.target.value as ProviderType })}
+                        className="w-full text-xs bg-white border border-slate-200 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-indigo-600 outline-none"
+                      >
+                        <option value="ollama">Ollama</option>
+                        <option value="llamacpp">llama.cpp</option>
+                        <option value="gemini">Gemini (Cloud)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 font-medium">Model</label>
+                      <input
+                        type="text"
+                        value={mc[func].model}
+                        onChange={(e) => updateModelFunc(func, { model: e.target.value })}
+                        className="w-full text-xs bg-white border border-slate-200 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-indigo-600 outline-none"
+                        placeholder="model name"
+                      />
+                    </div>
+                  </div>
+                  {mc[func].provider !== "gemini" ? (
+                    <div>
+                      <label className="text-[10px] text-slate-400 font-medium">Base URL</label>
+                      <input
+                        type="text"
+                        value={mc[func].baseUrl || (mc[func].provider === "ollama" ? "http://localhost:11434" : "http://localhost:8080")}
+                        onChange={(e) => updateModelFunc(func, { baseUrl: e.target.value })}
+                        className="w-full text-xs bg-white border border-slate-200 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-indigo-600 outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="text-[10px] text-slate-400 font-medium">API Key</label>
+                      <input
+                        type="password"
+                        value={mc[func].apiKey || ""}
+                        onChange={(e) => updateModelFunc(func, { apiKey: e.target.value })}
+                        className="w-full text-xs bg-white border border-slate-200 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-indigo-600 outline-none"
+                        placeholder="GEMINI_API_KEY"
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>

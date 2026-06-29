@@ -4,6 +4,15 @@
  */
 
 export type DatasetFormat = 'alpaca' | 'sharegpt' | 'qa' | 'raw';
+export type ProviderType = "ollama" | "llamacpp" | "gemini";
+export type ModelFunction = "research" | "generation" | "scoring";
+
+export interface ModelFunctionConfig {
+  provider: ProviderType;
+  model: string;
+  baseUrl?: string;
+  apiKey?: string;
+}
 
 export interface AlpacaItem {
   instruction: string;
@@ -93,6 +102,11 @@ export interface DatasetGenerationConfig {
   tone: 'technical' | 'casual' | 'academic' | 'explanatory' | 'socratic';
   complexity: 'basic' | 'intermediate' | 'advanced';
   redTeam?: boolean;
+  modelConfig?: {
+    research: ModelFunctionConfig;
+    generation: ModelFunctionConfig;
+    scoring: ModelFunctionConfig;
+  };
 }
 
 export interface DatasetMetrics {

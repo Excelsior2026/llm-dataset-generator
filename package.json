@@ -1,9 +1,12 @@
 {
-  "name": "react-example",
+  "name": "llm-dataset-generator",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Local-first LLM training dataset generator with multi-provider model gateway and Electron desktop app",
   "type": "module",
   "main": "main.js",
+  "author": "TrainEngine.ai",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
@@ -20,6 +23,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
+    "lightningcss-darwin-arm64": "^1.32.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "react": "^19.0.1",
@@ -35,8 +39,36 @@
     "electron-builder": "^26.15.3",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
-    "tsx": "^4.21.0",
+    "tsx": "^4.22.4",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
+  },
+  "build": {
+    "appId": "ai.trainengine.dataset-generator",
+    "productName": "LLM Dataset Generator",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "electron/**/*",
+      "dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] }
+      ],
+      "icon": "electron/icon.png",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }]
+    },
+    "linux": {
+      "target": [{ "target": "AppImage", "arch": ["x64"] }]
+    }
   }
 }
