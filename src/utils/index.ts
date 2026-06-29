@@ -377,3 +377,64 @@ export function getSchemaForFormat(format: string): Record<string, any> {
 
   return schema;
 }
+
+export function computeQualityScore(item: any): number {
+  let score = 50; // Base score
+
+  try {
+    // Extract text content for analysis
+    let text = "";
+    let reasoning = item.metadata?.reasoning || "";
+
+    if (item.alpaca) {
+      text = [item.alpaca.instruction, item.alpaca.input, item.alpaca.output].filter(Boolean).join(" ");
+    } else if (item.sharegpt?.messages) {
+      text = item.sharegpt.messages.map((m: any) => m.content).join(" ");
+    } else if (item.qa) {
+      text = [item.qa.question, item.qa.answer].filter(Boolean).join(" ");
+    } else if (item.raw) {
+      text = [item.raw.title, item.raw.text].filter(Boolean).join(" ");
+    }
+
+    // Length scoring (penalize very short entries)
+    if (text.length > 2000) score += 15;
+    else if (text.length > 1000) score += 10;
+    else if (text.length > 500) score += 5;
+    else if (text.length < 100) score -= 15;
+
+    // Reasoning depth
+    if (reasoning.length > 500) score += 15;
+    else if (reasoning.length > 200) score += 10;
+    else if (reasoning.length > 50) score += 5;
+    else score -= 10;
+
+    // Vocabulary diversity
+    const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+    const unique = new Set(words);
+    const diversity = words.length > 0 ? unique.size / words.length : 0;
+    if (diversity > 0.7) score += 10;
+    else if (diversity > 0.5) score += 5;
+    else if (diversity < 0.3) score -= 5;
+
+    // Metadata richness
+    if (item.metadata?.trajectory) score += 10;
+    if (item.metadata?.persona) score += 5;
+    if (item.metadata?.interdisciplinary_link) score += 8;
+    if (item.metadata?.correction) score += 5;
+
+    // Negative examples get a slight penalty (they're intentionally flawed)
+    if (item.metadata?.is_negative) score -= 5;
+
+  } catch (e) {
+    // Don't let scoring errors affect the item
+  }
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+export function computeAllScores(items: any[]): any[] {
+  return items.map(item => ({
+    ...item,
+    qualityScore: computeQualityScore(item),
+  }));
+}

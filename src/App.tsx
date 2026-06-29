@@ -11,6 +11,7 @@ import MetricsPanel from "./components/MetricsPanel";
 import DatasetViewer from "./components/DatasetViewer";
 import { Sparkles, Terminal, AlertTriangle, ArrowRight, Github, RefreshCw, Layers, Save, FolderOpen, Trash2 } from "lucide-react";
 import { saveItems, loadItems, saveSummary, loadSummary, saveConfig, loadConfig, saveNamedDataset, loadAllDatasets, deleteNamedDataset, clearCurrentSession, SavedDataset } from "./utils/persistence";
+import { computeAllScores } from "./utils/index";
 
 export default function App() {
   const defaultConfig: DatasetGenerationConfig = {
@@ -118,7 +119,8 @@ export default function App() {
 
     eventSource.addEventListener("batch_done", (e) => {
       const data = JSON.parse(e.data);
-      setItems(prev => [...prev, ...data.items]);
+      const scored = computeAllScores(data.items);
+      setItems(prev => [...prev, ...scored]);
       setLoadingStep(`Received batch ${data.batchIndex + 1}/${data.totalBatches} (${data.batchSize} items)`);
     });
 
@@ -189,7 +191,7 @@ export default function App() {
       }
 
       // Prepend additional records to list
-      setItems(prevItems => [...data.items, ...prevItems]);
+      setItems(prevItems => [...computeAllScores(data.items), ...prevItems]);
     } catch (err: any) {
       console.error(err);
       setErrorCode(err.message || "An unresolved breakdown occurred while expanding records.");

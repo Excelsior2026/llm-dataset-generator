@@ -680,6 +680,15 @@ export default function DatasetViewer({
                         <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-medium capitalize">
                           {item.topic || "Research Fact"}
                         </span>
+                        {item.qualityScore !== undefined && (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                            item.qualityScore >= 80 ? 'bg-emerald-100 text-emerald-700' :
+                            item.qualityScore >= 50 ? 'bg-amber-100 text-amber-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {item.qualityScore}
+                          </span>
+                        )}
                         {preview && (
                           <span className="text-[10px] text-slate-400 truncate hidden sm:inline">
                             • {preview.substring(0, 80)}...
