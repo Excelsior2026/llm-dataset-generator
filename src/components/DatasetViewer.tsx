@@ -7,7 +7,7 @@ import React, { useState } from "react";
 import { DatasetItem, DatasetFormat, AlpacaItem, ShareGPTItem, QAItem, RawItem } from "../types";
 import { 
   Download, Copy, ClipboardCheck, Trash2, Edit3, PlusCircle, Check, 
-  X, Sparkles, Filter, ChevronDown, ChevronUp, CopyIcon, Layers, Eye, RefreshCw, FileText
+  X, Sparkles, Filter, ChevronDown, ChevronUp, CopyIcon, Layers, Eye, RefreshCw, FileText, Upload, Loader
 } from "lucide-react";
 
 interface DatasetViewerProps {
@@ -60,6 +60,13 @@ export default function DatasetViewer({
 
   // Synthetic More state
   const [syntheticCount, setSyntheticCount] = useState(2);
+
+  // Hugging Face upload state
+  const [showHFDialog, setShowHFDialog] = useState(false);
+  const [hfToken, setHfToken] = useState("");
+  const [hfRepoName, setHfRepoName] = useState("");
+  const [hfUploading, setHfUploading] = useState(false);
+  const [hfResult, setHfResult] = useState<{ success: boolean; url?: string; error?: string } | null>(null);
 
   // Get distinct subtopics from items
   const subtopicsList = Array.from(new Set(items.map(item => item.topic || "Core Concepts")));
@@ -288,6 +295,40 @@ export default function DatasetViewer({
     setEditingItem(null);
   };
 
+  // HUGGING FACE UPLOAD HANDLER
+  const handleUploadToHF = async () => {
+    if (!hfToken.trim() || !hfRepoName.trim() || items.length === 0) return;
+
+    setHfUploading(true);
+    setHfResult(null);
+
+    try {
+      const response = await fetch("/api/upload-huggingface", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items,
+          token: hfToken.trim(),
+          repoName: hfRepoName.trim(),
+          format,
+          topic,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setHfResult({ success: true, url: data.url });
+      } else {
+        setHfResult({ success: false, error: data.error || "Upload failed" });
+      }
+    } catch (err: any) {
+      setHfResult({ success: false, error: err.message || "Network error" });
+    } finally {
+      setHfUploading(false);
+    }
+  };
+
   // SEARCH AND FILTERING
   const filteredItems = items.filter(item => {
     // Subtopic filter
@@ -367,6 +408,16 @@ export default function DatasetViewer({
           >
             <Layers className="w-3.5 h-3.5 text-slate-400" />
             <span>TXT</span>
+          </button>
+
+          {/* Hugging Face Upload Button */}
+          <button
+            onClick={() => { setShowHFDialog(true); setHfResult(null); }}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg py-1.5 px-3.5 hover:bg-indigo-100 transition cursor-pointer"
+            id="upload-hf"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>HF Hub</span>
           </button>
         </div>
       </div>
@@ -830,6 +881,104 @@ export default function DatasetViewer({
                   <>
                     <Sparkles className="w-3 h-3 text-white fill-current animate-pulse" />
                     <span>Synthesize</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HUGGING FACE UPLOAD DIALOG */}
+      {showHFDialog && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white border border-slate-100 rounded-xl max-w-md w-full p-5 space-y-4 shadow-xl shadow-slate-900/10">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Upload className="w-4 h-4 text-indigo-500" />
+                <span>Upload to Hugging Face Hub</span>
+              </h3>
+              <button onClick={() => setShowHFDialog(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Hugging Face Token
+                </label>
+                <input
+                  type="password"
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-md py-1.5 px-2.5 font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  value={hfToken}
+                  onChange={(e) => setHfToken(e.target.value)}
+                />
+                <p className="text-[9px] text-slate-400 mt-1">
+                  Create at{" "}
+                  <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener noreferrer" className="text-indigo-500 underline">
+                    huggingface.co/settings/tokens
+                  </a>
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Dataset Repository Name
+                </label>
+                <input
+                  type="text"
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-md py-1.5 px-2.5 font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  placeholder="my-llm-dataset"
+                  value={hfRepoName}
+                  onChange={(e) => setHfRepoName(e.target.value)}
+                />
+                <p className="text-[9px] text-slate-400 mt-1">
+                  Will be created at huggingface.co/datasets/{"<repo>"}
+                </p>
+              </div>
+
+              {items.length > 0 && (
+                <div className="bg-slate-50 rounded-lg p-2.5 text-[10px] text-slate-600">
+                  <span className="font-bold">{items.length}</span> items in <span className="font-bold">{format}</span> format will be uploaded.
+                </div>
+              )}
+
+              {hfResult && (
+                <div className={`p-2.5 rounded-lg text-xs ${
+                  hfResult.success ? "bg-emerald-50 border border-emerald-200 text-emerald-800" : "bg-red-50 border border-red-200 text-red-800"
+                }`}>
+                  {hfResult.success ? (
+                    <div>
+                      <p className="font-bold mb-1">Upload successful!</p>
+                      <a href={hfResult.url} target="_blank" rel="noopener noreferrer" className="underline text-indigo-600">
+                        {hfResult.url}
+                      </a>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="font-bold mb-1">Upload failed</p>
+                      <p>{hfResult.error}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={handleUploadToHF}
+                disabled={hfUploading || !hfToken.trim() || !hfRepoName.trim()}
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-2"
+              >
+                {hfUploading ? (
+                  <>
+                    <Loader className="w-3.5 h-3.5 animate-spin" />
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload to Hugging Face</span>
                   </>
                 )}
               </button>
