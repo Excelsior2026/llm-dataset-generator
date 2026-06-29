@@ -3,16 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { DatasetGenerationConfig, DatasetItem, SearchResultSummary, APIResponse } from "./types";
 import ConfigPanel from "./components/ConfigPanel";
 import ResearchSources from "./components/ResearchSources";
 import MetricsPanel from "./components/MetricsPanel";
 import DatasetViewer from "./components/DatasetViewer";
-import { Sparkles, Terminal, AlertTriangle, ArrowRight, Github, RefreshCw, Layers } from "lucide-react";
+import { Sparkles, Terminal, AlertTriangle, ArrowRight, Github, RefreshCw, Layers, Save, FolderOpen, Trash2 } from "lucide-react";
+import { saveItems, loadItems, saveSummary, loadSummary, saveConfig, loadConfig, saveNamedDataset, loadAllDatasets, deleteNamedDataset, clearCurrentSession, SavedDataset } from "./utils/persistence";
 
 export default function App() {
-  const [config, setConfig] = useState<DatasetGenerationConfig>({
+  const defaultConfig: DatasetGenerationConfig = {
     topic: "",
     size: 10,
     format: "alpaca",
@@ -20,16 +21,58 @@ export default function App() {
     systemPromptText: "You are a professional instructor. Generate detailed, structured instruction-following pairs.",
     tone: "explanatory",
     complexity: "intermediate"
-  });
+  };
 
-  const [researchSummary, setResearchSummary] = useState<SearchResultSummary | null>(null);
-  const [items, setItems] = useState<DatasetItem[]>([]);
+  const [config, setConfig] = useState<DatasetGenerationConfig>(() => loadConfig() || defaultConfig);
+  const [researchSummary, setResearchSummary] = useState<SearchResultSummary | null>(() => loadSummary());
+  const [items, setItems] = useState<DatasetItem[]>(() => loadItems());
   
   // Loader States
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState("");
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
+
+  // Saved datasets management
+  const [savedDatasets, setSavedDatasets] = useState<SavedDataset[]>(() => loadAllDatasets());
+  const [showSavedPanel, setShowSavedPanel] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveDatasetName, setSaveDatasetName] = useState("");
+
+  // Auto-persist items and summary on change
+  useEffect(() => { saveItems(items); }, [items]);
+  useEffect(() => { if (researchSummary) saveSummary(researchSummary); }, [researchSummary]);
+  useEffect(() => { saveConfig(config); }, [config]);
+
+  const handleUpdateItems = useCallback((newItems: DatasetItem[]) => {
+    setItems(newItems);
+  }, []);
+
+  const handleSaveDataset = () => {
+    const name = saveDatasetName.trim() || `Dataset ${new Date().toLocaleDateString()}`;
+    saveNamedDataset(name, items, researchSummary, config.topic || researchSummary?.topic || "", config.format);
+    setSavedDatasets(loadAllDatasets());
+    setSaveDialogOpen(false);
+    setSaveDatasetName("");
+  };
+
+  const handleLoadDataset = (dataset: SavedDataset) => {
+    setItems(dataset.items);
+    if (dataset.summary) setResearchSummary(dataset.summary);
+    setShowSavedPanel(false);
+  };
+
+  const handleDeleteDataset = (name: string) => {
+    deleteNamedDataset(name);
+    setSavedDatasets(loadAllDatasets());
+  };
+
+  const handleClearSession = () => {
+    clearCurrentSession();
+    setItems([]);
+    setResearchSummary(null);
+    setConfig(defaultConfig);
+  };
 
   // TRIGGER FIRST MAIN GENERATION
   const handleGenerateDataset = async () => {
@@ -161,6 +204,108 @@ export default function App() {
             {researchSummary && (
               <ResearchSources summary={researchSummary} />
             )}
+
+            {/* Saved Datasets Management Panel */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  Saved Datasets
+                </h2>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setSaveDialogOpen(!saveDialogOpen)}
+                    disabled={items.length === 0}
+                    className="flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Save current dataset"
+                  >
+                    <Save className="w-3 h-3" />
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setShowSavedPanel(!showSavedPanel)}
+                    disabled={savedDatasets.length === 0}
+                    className="flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Browse saved datasets"
+                  >
+                    <FolderOpen className="w-3 h-3" />
+                    Browse ({savedDatasets.length})
+                  </button>
+                  {items.length > 0 && (
+                    <button
+                      onClick={handleClearSession}
+                      className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors"
+                      title="Clear current session"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Save Dialog */}
+              {saveDialogOpen && (
+                <div className="bg-indigo-50/30 border border-indigo-100 rounded-lg p-3 space-y-2">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Dataset Name
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      className="flex-1 text-xs bg-white border border-slate-200 rounded-md py-1.5 px-2.5 text-slate-800 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      placeholder="e.g. Physics Q&A v1"
+                      value={saveDatasetName}
+                      onChange={(e) => setSaveDatasetName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSaveDataset()}
+                    />
+                    <button
+                      onClick={handleSaveDataset}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Saved Datasets List */}
+              {showSavedPanel && savedDatasets.length > 0 && (
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {savedDatasets.map((ds) => (
+                    <div
+                      key={ds.id}
+                      className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-2.5 group hover:border-indigo-200 transition-colors"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-700 truncate">{ds.name}</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          {ds.topic || "Untitled"} · {ds.itemCount} items · {ds.format}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 ml-2 shrink-0">
+                        <button
+                          onClick={() => handleLoadDataset(ds)}
+                          className="px-2 py-1 text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                        >
+                          Load
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDataset(ds.name)}
+                          className="p-1 text-slate-300 hover:text-red-500 rounded transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {showSavedPanel && savedDatasets.length === 0 && (
+                <p className="text-[10px] text-slate-400 text-center py-3">
+                  No saved datasets. Generate some data and save it.
+                </p>
+              )}
+            </div>
           </div>
 
           {/* RIGHT VIEW column: 7/12 widths */}
@@ -171,7 +316,7 @@ export default function App() {
             {/* List and Actions Portal */}
             <DatasetViewer
               items={items}
-              onUpdateItems={setItems}
+              onUpdateItems={handleUpdateItems}
               format={config.format}
               topic={config.topic || researchSummary?.topic || "Custom Corpus"}
               researchSummary={researchSummary?.researchSummary || ""}
