@@ -83,7 +83,7 @@ app.get("/api/generate/stream", async (req: Request, res: Response) => {
   res.flushHeaders();
 
   try {
-    const { topic, size = 10, format = "alpaca", temperature = 0.7, tone = "explanatory", complexity = "intermediate", redTeam } = req.query as any;
+    const { topic, size = 10, format = "alpaca", temperature = 0.7, tone = "explanatory", complexity = "intermediate", redTeam, primaryTopic, secondaryTopic } = req.query as any;
 
     if (!topic || topic.trim() === "") {
       sendSSEEvent(res, "error", { error: "Missing required field 'topic'" });
@@ -92,6 +92,7 @@ app.get("/api/generate/stream", async (req: Request, res: Response) => {
     }
 
     const isRedTeam = redTeam === "true";
+    const isCrossDomain = secondaryTopic && secondaryTopic !== "";
 
     sendSSEEvent(res, "status", { message: "Connecting to Gemini API..." });
 
@@ -183,10 +184,21 @@ CRITICAL: This is an ADVERSARIAL RED-TEAMING generation session. Generate items 
 - Vary between obvious traps (easy to spot) and subtle ones (hard to detect)
 ` : '';
 
+      const crossDomainInstruction = isCrossDomain ? `
+CRITICAL: This is a CROSS-DOMAIN SYNTHESIS session. Generate items that:
+- Bridge the conceptual gap between the two primary domains
+- Each item MUST include a meaningful 'metadata.interdisciplinary_link' connecting both fields
+- Explain the 'synthesis_bridge' — the conceptual logic that links the domains
+- Show how concepts, methods, or principles from one domain apply to the other
+- Include examples of real-world problems that sit at the intersection of both fields
+- Vary items: some focused on Domain A → Domain B transfer, others on Domain B → Domain A
+- Highlight analogous structures, shared patterns, and conceptual mappings
+` : '';
+
       const systemInstruction = `You are an expert AI compiler. Generate ${itemsInThisBatch} training examples in '${format}' layout.
 Ground in this research: ${researchSummary}
 Tone: ${tone}. Complexity: ${complexity}. Subtopics: ${subtopicSubset.join(", ")}.
-Output strict JSON matching the schema.${redTeamInstruction}`;
+Output strict JSON matching the schema.${redTeamInstruction}${crossDomainInstruction}`;
 
       try {
         const generation = await ai.models.generateContent({

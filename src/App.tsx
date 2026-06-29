@@ -16,6 +16,7 @@ import { computeAllScores } from "./utils/index";
 export default function App() {
   const defaultConfig: DatasetGenerationConfig = {
     topic: "",
+    secondaryTopic: "",
     size: 10,
     format: "alpaca",
     temperature: 0.7,
@@ -87,14 +88,20 @@ export default function App() {
     setLoadingStep("Connecting to generation stream...");
 
     // Build query params for SSE endpoint
+    const effectiveTopic = config.secondaryTopic
+      ? `Intersection of "${config.topic}" and "${config.secondaryTopic}"`
+      : config.topic;
+
     const params = new URLSearchParams({
-      topic: config.topic,
+      topic: effectiveTopic,
       size: String(config.size),
       format: config.format,
       temperature: String(config.temperature),
       tone: config.tone,
       complexity: config.complexity,
       redTeam: config.redTeam ? "true" : "false",
+      primaryTopic: config.topic,
+      secondaryTopic: config.secondaryTopic || "",
     });
 
     const eventSource = new EventSource(`/api/generate/stream?${params}`);

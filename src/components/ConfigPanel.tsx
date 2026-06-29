@@ -93,6 +93,29 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
           </div>
         </div>
 
+        {/* Cross-Domain Secondary Topic (Optional) */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5" htmlFor="input-secondary-topic">
+            Cross-Domain Synthesis <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+          </label>
+          <div className="relative">
+            <input
+              id="input-secondary-topic"
+              type="text"
+              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-600 outline-none font-medium text-slate-850 placeholder:text-slate-400 transition-all"
+              placeholder="e.g., Economics, Biology, Music Theory..."
+              value={config.secondaryTopic || ""}
+              onChange={(e) => onChangeConfig({ ...config, secondaryTopic: e.target.value })}
+              disabled={isLoading}
+            />
+          </div>
+          {config.secondaryTopic && (
+            <p className="text-[10px] text-indigo-600 font-medium mt-1">
+              Dataset will explore the intersection of &ldquo;{config.topic}&rdquo; and &ldquo;{config.secondaryTopic}&rdquo;
+            </p>
+          )}
+        </div>
+
         {/* Dataset Formats Select */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5" id="lbl-format">

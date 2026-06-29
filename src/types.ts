@@ -85,6 +85,7 @@ export interface DependencyEdge {
 
 export interface DatasetGenerationConfig {
   topic: string;
+  secondaryTopic?: string;
   size: number;
   format: DatasetFormat;
   temperature: number;
