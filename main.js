@@ -67,6 +67,38 @@ function createWindow() {
     },
   });
 
+  // Prevent navigation to external URLs (security)
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith(`http://localhost:${PORT}`)) {
+      event.preventDefault();
+    }
+  });
+
+  // Open external links in the default browser, not inside Electron
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("https://") || url.startsWith("http://")) {
+      require("electron").shell.openExternal(url);
+    }
+    return { action: "deny" };
+  });
+
+  // Set Content Security Policy
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": [
+          "default-src 'self'; " +
+          "script-src 'self' 'unsafe-inline'; " +
+          "style-src 'self' 'unsafe-inline'; " +
+          "img-src 'self' data: blob:; " +
+          "connect-src 'self' ws://localhost:* http://localhost:*; " +
+          "font-src 'self' data:;"
+        ],
+      },
+    });
+  });
+
   const url = `http://localhost:${PORT}`;
   mainWindow.loadURL(url);
 

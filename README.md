@@ -1,20 +1,38 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# LLM Dataset Generator
 
-# Run and deploy your AI Studio app
+A local-first LLM training dataset generator with multi-provider model gateway and Electron desktop app.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/20b6fa7c-96b7-475f-b52f-fb65d8f60b54
+- **Multi-Provider Gateway**: Supports Gemini (cloud), Ollama, and llama.cpp (local) with independently configurable research, generation, and scoring models
+- **Research Grounding**: Google Search integration for authoritative source-backed generation
+- **Quality Pipeline**: Judge → Refine auditing cycle for high-fidelity training data
+- **Multi-Format Export**: Alpaca, ShareGPT, QA, and raw formats
+- **DPO Pair Generation**: Chosen/rejected preference pairs for Direct Preference Optimization
+- **Instruction Evolution**: WizardLM-style complexity escalation
+- **Conversation Trees**: Multi-turn branching dialogue generation
+- **Hugging Face Publishing**: Direct upload to Hugging Face Hub
 
-## Run Locally
+## Quick Start
 
-**Prerequisites:**  Node.js
+```bash
+npm install
+npm run dev
+```
 
+Open http://localhost:3000 in your browser.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Configuration
+
+Edit `.env` to add your Gemini API key (optional — the app works with local models only).
+
+## Architecture
+
+- **Backend**: Express + TypeScript server with Vite middleware
+- **Frontend**: React 19 + Tailwind CSS + Recharts
+- **Desktop**: Electron with `contextIsolation: true` and `nodeIntegration: false`
+- **Providers**: ProviderFactory pattern with ModelProvider interface
+
+## License
+
+Apache 2.0 — TrainEngine.ai

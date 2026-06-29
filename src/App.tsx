@@ -322,7 +322,7 @@ export default function App() {
               <p className="text-xs text-amber-700 mt-1 leading-relaxed">{errorCode}</p>
               {errorCode.includes("GEMINI_API_KEY") && (
                 <p className="text-xs text-amber-700/80 mt-1.5 font-medium">
-                  💡 Tips: You can attach your personal key under the <strong>Settings &gt; Secrets</strong> tab in the top-right option settings.
+                  💡 Tips: Set your <strong>GEMINI_API_KEY</strong> in the <strong>.env</strong> file, or configure it under <strong>Model Configuration</strong> in the control panel. For local-only usage (Ollama/llama.cpp), no API key is needed.
                 </p>
               )}
             </div>

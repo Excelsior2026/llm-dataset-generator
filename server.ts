@@ -92,6 +92,7 @@ app.get("/api/generate/stream", async (req: Request, res: Response) => {
 
     const researchProvider = createProvider(modelConfig.research);
     const genProvider = createProvider(modelConfig.generation);
+    const scoringProvider = createProvider(modelConfig.scoring);
 
     const usesGeminiResearch = modelConfig.research.provider === "gemini" && process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY";
 
@@ -170,10 +171,14 @@ Format the end of your response exactly like this:
 
     for (let idx = 0; idx < numBatches; idx++) {
       const itemsInThisBatch = Math.min(batchSize, targetSize - idx * batchSize);
-      const subtopicSubset = subtopics.slice(
-        (idx * 2) % subtopics.length,
-        ((idx * 2) + 3) % subtopics.length || subtopics.length
-      );
+      const subtopicSubset = (() => {
+        const start = (idx * 2) % subtopics.length;
+        const end = start + 3;
+        if (end <= subtopics.length) {
+          return subtopics.slice(start, end);
+        }
+        return [...subtopics.slice(start), ...subtopics.slice(0, end - subtopics.length)];
+      })();
 
       sendSSEEvent(res, "status", { message: `Generating batch ${idx + 1}/${numBatches} (${itemsInThisBatch} items)...` });
 
@@ -220,6 +225,59 @@ Output strict JSON matching the schema.${redTeamInstruction}${crossDomainInstruc
           batchItems = parsed.items || [];
         } catch (e) {
           logger.error(`Batch ${idx} parse error`);
+        }
+
+        // Judge/Refine: audit the batch, rewrite flawed items
+        if (batchItems.length > 0) {
+          sendSSEEvent(res, "status", { message: `Auditing batch ${idx + 1}/${numBatches} (${batchItems.length} items)...` });
+          try {
+            const judgeResult = await scoringProvider.generate({
+              prompt: `You are a world-class logic auditor. Review these ${batchItems.length} training items.
+For each item, identify:
+1. Logical gaps in the 'metadata.reasoning' path.
+2. Factual inaccuracies.
+3. Misalignment between reasoning and the final output.
+4. Subtle logical traps that were not correctly handled.
+
+Output a JSON array of critiques, where each object matches the index of the item:
+{ "critiques": [ { "index": 0, "isValid": boolean, "critique": "detailed feedback" }, ... ] }
+
+Items to audit:
+${JSON.stringify(batchItems)}`,
+              temperature: 0.2,
+              responseMimeType: "application/json",
+            });
+
+            const judgeData = JSON.parse(cleanJsonString(judgeResult || "{}"));
+            const critiques = judgeData.critiques || [];
+            const failedIndices = critiques.filter((c: any) => !c.isValid).map((c: any) => c.index);
+
+            if (failedIndices.length > 0) {
+              sendSSEEvent(res, "status", { message: `Refining ${failedIndices.length} items in batch ${idx + 1}...` });
+
+              const refinerResult = await genProvider.generate({
+                prompt: `You are an expert AI refiner. Rewrite these training items to fix the identified flaws.
+Preserve the original intent and format. Ensure 'metadata.reasoning' is now flawless.
+
+Output JSON: { "refinedItems": [ { "index": number, "item": { ... } } ] }
+
+Input:
+${critiques.filter((c: any) => !c.isValid).map((c: any) => `Item Index ${c.index}: ${JSON.stringify(batchItems[c.index])}\nCritique: ${c.critique}`).join("\n\n")}`,
+                temperature: 0.4,
+                responseMimeType: "application/json",
+              });
+
+              const refinedData = JSON.parse(cleanJsonString(refinerResult || "{}"));
+              const refinedItems = refinedData.refinedItems || [];
+              refinedItems.forEach((entry: any) => {
+                if (typeof entry.index === 'number' && batchItems[entry.index]) {
+                  batchItems[entry.index] = entry.item;
+                }
+              });
+            }
+          } catch (e) {
+            logger.warn(`Judge/refine failed for batch ${idx}, using raw items`);
+          }
         }
 
         sendSSEEvent(res, "batch_done", { batchIndex: idx, totalBatches: numBatches, batchSize: batchItems.length, items: batchItems });
@@ -340,10 +398,14 @@ Format the end of your response exactly like this:
 
     const batchPromises = Array.from({ length: numBatches }).map(async (_, idx) => {
       const itemsInThisBatch = Math.min(batchSize, targetSize - idx * batchSize);
-      const subtopicSubset = subtopics.slice(
-        (idx * 2) % subtopics.length,
-        ((idx * 2) + 3) % subtopics.length || subtopics.length
-      );
+      const subtopicSubset = (() => {
+        const start = (idx * 2) % subtopics.length;
+        const end = start + 3;
+        if (end <= subtopics.length) {
+          return subtopics.slice(start, end);
+        }
+        return [...subtopics.slice(start), ...subtopics.slice(0, end - subtopics.length)];
+      })();
 
       const redTeamInstruction = isRedTeam ? `
 CRITICAL: This is an ADVERSARIAL RED-TEAMING session. Generate items that:
@@ -639,7 +701,7 @@ app.post("/api/upload-huggingface", async (req: Request, res: Response) => {
 
     // Step 3: Upload the JSONL file via HF Hub API
     logger.info(`Uploading dataset to ${repoName}...`);
-    const uploadUrl = `https://huggingface.co/api/datasets/${repoName}/upload`;
+    const uploadUrl = `https://huggingface.co/api/datasets/${encodeURIComponent(repoName)}/upload`;
     const uploadRes = await fetch(uploadUrl, {
       method: "POST",
       headers: hfHeaders,
@@ -655,7 +717,7 @@ app.post("/api/upload-huggingface", async (req: Request, res: Response) => {
       logger.error(`HF upload failed: ${errorBody}`);
 
       // Fallback: try direct file upload via raw endpoint
-      const fallbackUrl = `https://huggingface.co/datasets/${repoName}/raw/main/data/${sanitizedName}_${format}.jsonl`;
+      const fallbackUrl = `https://huggingface.co/datasets/${encodeURIComponent(repoName)}/raw/main/data/${sanitizedName}_${format}.jsonl`;
       const fallbackRes = await fetch(fallbackUrl, {
         method: "PUT",
         headers: {
@@ -714,10 +776,11 @@ Synthetic LLM training dataset generated by **TrainEngine.ai**.
       logger.warn("Failed to upload README.md, dataset file was uploaded");
     }
 
-    logger.info(`Dataset uploaded successfully to https://huggingface.co/datasets/${repoName}`);
+    const encodedRepo = encodeURIComponent(repoName);
+    logger.info(`Dataset uploaded successfully to https://huggingface.co/datasets/${encodedRepo}`);
     res.json({
       success: true,
-      url: `https://huggingface.co/datasets/${repoName}`,
+      url: `https://huggingface.co/datasets/${encodedRepo}`,
       fileCount: 1,
       itemCount: items.length,
     });
@@ -842,12 +905,9 @@ Output just the flawed answer, no explanation.`,
             metadata: { source: "generated_flawed", original_id: item.id, topic: item.topic },
           });
         } catch {
-          pairs.push({
-            instruction,
-            chosen: correctAnswer,
-            rejected: correctAnswer,
-            metadata: { source: "fallback", original_id: item.id, topic: item.topic },
-          });
+          // Skip items where flawed generation fails — identical chosen/rejected
+          // pairs provide no preference signal and harm DPO training
+          logger.warn(`Skipping DPO pair for item ${item.id}: flawed generation failed`);
         }
       }
     }
@@ -945,6 +1005,15 @@ app.post("/api/generate-tree", async (req: Request, res: Response) => {
       return;
     }
 
+    // Clamp tree parameters to prevent exponential memory exhaustion
+    const safeDepth = Math.min(depth, 5);
+    const safeBranches = Math.min(branches, 3);
+    const maxTotalNodes = 100;
+
+    if (depth !== safeDepth || branches !== safeBranches) {
+      logger.info(`Tree params clamped: depth ${depth}->${safeDepth}, branches ${branches}->${safeBranches}`);
+    }
+
     const config = parseModelConfig({ modelConfig });
     const genProvider = createProvider(config.generation);
 
@@ -955,7 +1024,12 @@ app.post("/api/generate-tree", async (req: Request, res: Response) => {
       branches: TreeNode[];
     }
 
-    async function buildBranch(topic: string, currentDepth: number, maxDepth: number, maxBranches: number, history: { role: string; content: string }[]): Promise<TreeNode> {
+    let nodeCount = 0;
+
+    async function buildBranch(topic: string, currentDepth: number, maxDepth: number, maxBranches: number, history: { role: string; content: string }[]): Promise<TreeNode | null> {
+      if (nodeCount >= maxTotalNodes) return null;
+      nodeCount++;
+
       const role = currentDepth % 2 === 0 ? "user" : "assistant";
       const historyStr = history.map(h => `${h.role}: ${h.content}`).join("\n");
 
@@ -990,7 +1064,7 @@ Output JSON: { "content": "..." }`,
 
         for (let b = 0; b < numBranches; b++) {
           const child = await buildBranch(topic, currentDepth + 1, maxDepth, maxBranches, newHistory);
-          newNode.branches.push(child);
+          if (child) newNode.branches.push(child);
         }
       }
 
@@ -1006,9 +1080,9 @@ Output JSON: { "content": "..." }`,
 
     const firstHistory = [{ role: "user", content: root.content }];
 
-    for (let b = 0; b < branches; b++) {
-      const child = await buildBranch(topic, 1, depth, branches, firstHistory);
-      root.branches.push(child);
+    for (let b = 0; b < safeBranches; b++) {
+      const child = await buildBranch(topic, 1, safeDepth, safeBranches, firstHistory);
+      if (child) root.branches.push(child);
     }
 
     function flattenTree(node: TreeNode, level: number = 0): any[] {
@@ -1048,9 +1122,9 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    logger.info(`Server running on http://0.0.0.0:${PORT}`);
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  app.listen(PORT, "127.0.0.1", () => {
+    logger.info(`Server running on http://127.0.0.1:${PORT}`);
+    console.log(`Server running on http://127.0.0.1:${PORT}`);
   });
 }
 

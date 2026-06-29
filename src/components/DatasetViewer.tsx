@@ -93,7 +93,7 @@ export default function DatasetViewer({
   // Complexity-sorted items
   const sortedItems = useMemo(() => {
     if (!sortByComplexity) return items;
-    const order: Record<string, number> = { novice: 0, basic: 0, intermediate: 1, advanced: 2, expert: 3 };
+    const order: Record<string, number> = { novice: 0, intermediate: 1, expert: 2 };
     return [...items].sort((a, b) => (order[a.metadata?.complexity] ?? 0) - (order[b.metadata?.complexity] ?? 0));
   }, [items, sortByComplexity]);
 

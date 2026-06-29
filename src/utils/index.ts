@@ -37,7 +37,7 @@ export interface ItemMapping {
   };
 }
 
-function mapItemToFormat(item: any, format: string, id: string, topic: string): ItemMapping {
+export function mapItemToFormat(item: any, format: string, id: string, topic: string): ItemMapping {
   const itemTopic = item.topic || "General Concepts";
   const metadata = item.metadata || {
     reasoning: "No reasoning provided",
@@ -127,12 +127,63 @@ export class ApiError extends Error {
   }
 }
 
-export function validateRequest<T>(data: any, schema: { new (): T }): T {
-  try {
-    return JSON.parse(JSON.stringify(data));
-  } catch (error) {
-    throw new ApiError('Invalid request format', 400, false);
+export interface ValidationRule {
+  field: string;
+  type: 'string' | 'number' | 'boolean' | 'array' | 'object';
+  required?: boolean;
+  min?: number;
+  max?: number;
+  minLength?: number;
+  maxLength?: number;
+  allowedValues?: string[];
+}
+
+export function validateRequest<T>(data: any, rules: ValidationRule[]): T {
+  if (!data || typeof data !== 'object') {
+    throw new ApiError('Request body must be a JSON object', 400, false);
   }
+
+  for (const rule of rules) {
+    const value = data[rule.field];
+
+    if (rule.required && (value === undefined || value === null)) {
+      throw new ApiError(`Missing required field: '${rule.field}'`, 400, false);
+    }
+
+    if (value === undefined || value === null) continue;
+
+    if (rule.type === 'array' && !Array.isArray(value)) {
+      throw new ApiError(`Field '${rule.field}' must be an array`, 400, false);
+    }
+
+    if (typeof value !== rule.type && rule.type !== 'array' && rule.type !== 'object') {
+      throw new ApiError(`Field '${rule.field}' must be of type ${rule.type}`, 400, false);
+    }
+
+    if (rule.type === 'string' && typeof value === 'string') {
+      if (rule.minLength !== undefined && value.length < rule.minLength) {
+        throw new ApiError(`Field '${rule.field}' must be at least ${rule.minLength} characters`, 400, false);
+      }
+      if (rule.maxLength !== undefined && value.length > rule.maxLength) {
+        throw new ApiError(`Field '${rule.field}' must be at most ${rule.maxLength} characters`, 400, false);
+      }
+    }
+
+    if (rule.type === 'number' && typeof value === 'number') {
+      if (rule.min !== undefined && value < rule.min) {
+        throw new ApiError(`Field '${rule.field}' must be >= ${rule.min}`, 400, false);
+      }
+      if (rule.max !== undefined && value > rule.max) {
+        throw new ApiError(`Field '${rule.field}' must be <= ${rule.max}`, 400, false);
+      }
+    }
+
+    if (rule.allowedValues && !rule.allowedValues.includes(value)) {
+      throw new ApiError(`Field '${rule.field}' must be one of: ${rule.allowedValues.join(', ')}`, 400, false);
+    }
+  }
+
+  return data as T;
 }
 
 export async function withRetry<T>(
@@ -148,6 +199,11 @@ export async function withRetry<T>(
       return await fn();
     } catch (error) {
       lastError = error as Error;
+
+      // Don't retry non-retryable errors (e.g. 400s, auth failures)
+      if (error instanceof ApiError && !error.retryable) {
+        throw error;
+      }
 
       if (attempt < maxRetries) {
         const waitTime = delay * Math.pow(backoffFactor, attempt - 1);
@@ -175,6 +231,7 @@ export function createTimeoutPromise<T>(
 export class Logger {
   private static instance: Logger;
   private logs: Array<{ timestamp: number; level: string; message: string; error?: any }> = [];
+  private readonly maxLogs = 1000;
 
   static getInstance(): Logger {
     if (!Logger.instance) {
@@ -205,6 +262,9 @@ export class Logger {
       message,
       error
     });
+    if (this.logs.length > this.maxLogs) {
+      this.logs.splice(0, this.logs.length - this.maxLogs);
+    }
   }
 
   getLogs(level?: string, since?: number): Array<{ timestamp: number; level: string; message: string; error?: any }> {
@@ -376,6 +436,33 @@ export function getSchemaForFormat(format: string): Record<string, any> {
   }
 
   return schema;
+}
+
+/**
+ * Convert the Gemini-style response schema (uppercase type names like "OBJECT"/
+ * "STRING") into a standard JSON Schema usable by Ollama structured outputs and
+ * llama.cpp's json_schema parameter. Recurses through properties and array
+ * items; passes required/enum/description through unchanged.
+ */
+export function toJsonSchema(schema: any): any {
+  if (Array.isArray(schema)) return schema.map(toJsonSchema);
+  if (schema === null || typeof schema !== "object") return schema;
+
+  const out: any = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === "type" && typeof value === "string") {
+      out.type = value.toLowerCase();
+    } else if (key === "properties" && value && typeof value === "object") {
+      out.properties = Object.fromEntries(
+        Object.entries(value).map(([k, v]) => [k, toJsonSchema(v)])
+      );
+    } else if (key === "items") {
+      out.items = toJsonSchema(value);
+    } else {
+      out[key] = value;
+    }
+  }
+  return out;
 }
 
 export function computeQualityScore(item: any): number {

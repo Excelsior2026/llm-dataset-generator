@@ -1,4 +1,5 @@
 import { ModelProvider, GenerateOptions, ProviderType } from "./types";
+import { toJsonSchema } from "../utils/index";
 
 export class LlamaCppProvider implements ModelProvider {
   private baseUrl: string;
@@ -71,8 +72,11 @@ export class LlamaCppProvider implements ModelProvider {
       temperature: options.temperature ?? 0.2,
       n_predict: 4096,
       stop: ["<|user|>", "<|system|>", "```"],
-      grammar: "root ::= \"{\" [^{}]* \"}\"",
     };
+
+    if (options.responseSchema) {
+      body.json_schema = toJsonSchema(options.responseSchema);
+    }
 
     try {
       const res = await fetch(`${this.baseUrl}/completion`, {

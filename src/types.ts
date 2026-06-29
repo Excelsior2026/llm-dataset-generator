@@ -100,7 +100,7 @@ export interface DatasetGenerationConfig {
   temperature: number;
   systemPromptText: string;
   tone: 'technical' | 'casual' | 'academic' | 'explanatory' | 'socratic';
-  complexity: 'basic' | 'intermediate' | 'advanced';
+  complexity: 'novice' | 'intermediate' | 'expert';
   redTeam?: boolean;
   modelConfig?: {
     research: ModelFunctionConfig;

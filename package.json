@@ -13,9 +13,9 @@
     "start": "node dist/server.cjs",
     "electron:dev": "electron .",
     "electron:build": "npm run build && electron-builder",
-    "clean": "rm -rf dist server.js",
+    "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "test": "node --loader ts-node/esm src/tests/index.ts"
+    "test": "node --import tsx src/tests/index.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -23,7 +23,6 @@
     "@vitejs/plugin-react": "^5.0.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
-    "lightningcss-darwin-arm64": "^1.32.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "react": "^19.0.1",
@@ -40,8 +39,7 @@
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.22.4",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.3"
+    "typescript": "~5.8.2"
   },
   "build": {
     "appId": "ai.trainengine.dataset-generator",

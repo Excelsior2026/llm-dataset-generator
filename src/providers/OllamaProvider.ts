@@ -1,4 +1,5 @@
 import { ModelProvider, GenerateOptions, ProviderType } from "./types";
+import { toJsonSchema } from "../utils/index";
 
 export class OllamaProvider implements ModelProvider {
   private baseUrl: string;
@@ -37,7 +38,7 @@ export class OllamaProvider implements ModelProvider {
     }
 
     if (options.responseMimeType === "application/json") {
-      body.format = "json";
+      body.format = options.responseSchema ? toJsonSchema(options.responseSchema) : "json";
     }
 
     const res = await fetch(`${this.baseUrl}/api/generate`, {

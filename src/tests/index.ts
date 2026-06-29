@@ -1,5 +1,6 @@
 // Test suite for LLM Dataset Generator utilities
-import { describe, it, beforeEach, afterEach, assert } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert';
 import { ApiError, withRetry, createTimeoutPromise, Logger, Memoizer } from '../utils/index';
 
 /**

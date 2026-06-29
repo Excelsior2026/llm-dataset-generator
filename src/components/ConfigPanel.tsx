@@ -261,9 +261,9 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
               disabled={isLoading}
               className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 font-medium focus:ring-2 focus:ring-indigo-600 outline-none"
             >
-              <option value="basic">Basic / Direct Retrieval</option>
+              <option value="novice">Novice / Direct Retrieval</option>
               <option value="intermediate">Intermediate / Reasoning</option>
-              <option value="advanced">Advanced / Reasoning & Math</option>
+              <option value="expert">Expert / Advanced & Math</option>
             </select>
           </div>
 
