@@ -6,6 +6,7 @@
 import React, { useState } from "react";
 import { SearchResultSummary } from "../types";
 import { Search, Globe, ChevronDown, ChevronUp, BookOpen, Layers } from "lucide-react";
+import KnowledgeGraph from "./KnowledgeGraph";
 
 interface ResearchSourcesProps {
   summary: SearchResultSummary;
@@ -102,6 +103,16 @@ export default function ResearchSources({ summary }: ResearchSourcesProps) {
                   </a>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Knowledge Graph */}
+          {summary.knowledgeGraph && summary.knowledgeGraph.nodes && summary.knowledgeGraph.nodes.length > 0 && (
+            <div className="pt-3 mt-2">
+              <KnowledgeGraph
+                nodes={summary.knowledgeGraph.nodes}
+                edges={summary.knowledgeGraph.edges}
+              />
             </div>
           )}
         </div>
