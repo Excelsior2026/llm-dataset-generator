@@ -14,6 +14,12 @@ export interface ModelFunctionConfig {
   apiKey?: string;
 }
 
+export interface ProviderConfig {
+  research: ModelFunctionConfig;
+  generation: ModelFunctionConfig;
+  scoring: ModelFunctionConfig;
+}
+
 export interface AlpacaItem {
   instruction: string;
   input: string;

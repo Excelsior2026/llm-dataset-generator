@@ -1,0 +1,553 @@
+openapi: 3.0.3
+info:
+  title: LLM Dataset Generator API
+  description: Local-first LLM training dataset generator with multi-provider model gateway
+  version: 1.0.0
+  contact:
+    name: TrainEngine.ai
+  license:
+    name: Apache 2.0
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+
+tags:
+  - name: Generation
+    description: Dataset generation endpoints
+  - name: Quality
+    description: Quality improvement and auditing
+  - name: Export
+    description: Export and upload endpoints
+  - name: System
+    description: Health and metrics
+
+paths:
+  /api/generate/stream:
+    get:
+      tags: [Generation]
+      summary: Generate dataset with SSE streaming
+      description: Real-time streaming generation with progress updates
+      operationId: generateStream
+      parameters:
+        - name: topic
+          in: query
+          required: true
+          schema: { type: string }
+          description: Primary topic for dataset generation
+        - name: size
+          in: query
+          schema: { type: integer, default: 10, minimum: 1, maximum: 30 }
+          description: Number of items to generate
+        - name: format
+          in: query
+          schema: { type: string, enum: [alpaca, sharegpt, qa, raw], default: alpaca }
+        - name: temperature
+          in: query
+          schema: { type: number, default: 0.7, minimum: 0, maximum: 2 }
+        - name: tone
+          in: query
+          schema: { type: string, enum: [technical, casual, academic, explanatory, socratic], default: explanatory }
+        - name: complexity
+          in: query
+          schema: { type: string, enum: [novice, intermediate, expert], default: intermediate }
+        - name: redTeam
+          in: query
+          schema: { type: boolean, default: false }
+          description: Enable adversarial red-team mode
+        - name: primaryTopic
+          in: query
+          schema: { type: string }
+        - name: secondaryTopic
+          in: query
+          schema: { type: string }
+          description: Enable cross-domain synthesis when provided
+        - name: modelConfig
+          in: query
+          schema: { type: string }
+          description: JSON-encoded provider configuration
+      responses:
+        '200:
+          description: SSE stream started
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '400:
+          description: Missing required field 'topic'
+        '500:
+          description: Generation error
+
+  /api/generate:
+    post:
+      tags: [Generation]
+      summary: Generate dataset (non-streaming)
+      operationId: generate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [topic]
+              properties:
+                topic: { type: string }
+                size: { type: integer, default: 10, minimum: 1, maximum: 30 }
+                format: { type: string, enum: [alpaca, sharegpt, qa, raw], default: alpaca }
+                temperature: { type: number, default: 0.7 }
+                tone: { type: string, default: explanatory }
+                complexity: { type: string, default: intermediate }
+                redTeam: { type: boolean, default: false }
+                modelConfig: { type: object }
+      responses:
+        '200:
+          description: Dataset generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateResponse'
+        '400:
+          description: Invalid request
+        '500:
+          description: Generation failed
+
+  /api/generate-more:
+    post:
+      tags: [Generation]
+      summary: Generate additional items based on existing research
+      operationId: generateMore
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [researchSummary]
+              properties:
+                topic: { type: string }
+                researchSummary: { type: string }
+                format: { type: string, enum: [alpaca, sharegpt, qa, raw] }
+                count: { type: integer, default: 2 }
+                tone: { type: string }
+                complexity: { type: string }
+                existingPrompts: { type: array, items: { type: string } }
+      responses:
+        '200:
+          description: Additional items generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/DatasetItem' }
+
+  /api/self-play:
+    post:
+      tags: [Quality]
+      summary: Iterative self-play improvement cycles
+      description: Judge and refine items through multiple cycles
+      operationId: selfPlay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/DatasetItem' }
+                cycles: { type: integer, default: 2, minimum: 1, maximum: 5 }
+                modelConfig: { type: object }
+      responses:
+        '200:
+          description: Items improved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/DatasetItem' }
+
+  /api/export-dpo:
+    post:
+      tags: [Export]
+      summary: Export DPO preference pairs
+      description: Generate chosen/rejected pairs for Direct Preference Optimization
+      operationId: exportDpo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/DatasetItem' }
+                modelConfig: { type: object }
+      responses:
+        '200:
+          description: DPO pairs exported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pairs:
+                    type: array
+                    items: { $ref: '#/components/schemas/DPOPair' }
+                  count: { type: integer }
+
+  /api/evolve:
+    post:
+      tags: [Quality]
+      summary: Evolve instructions (WizardLM-style)
+      description: Generate harder variants of existing items
+      operationId: evolve
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/DatasetItem' }
+                count: { type: integer, default: 2 }
+                modelConfig: { type: object }
+      responses:
+        '200:
+          description: Evolved items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/DatasetItem' }
+                  count: { type: integer }
+
+  /api/generate-tree:
+    post:
+      tags: [Generation]
+      summary: Generate multi-turn conversation trees
+      operationId: generateTree
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [topic]
+              properties:
+                topic: { type: string }
+                depth: { type: integer, default: 3, minimum: 1, maximum: 5 }
+                branches: { type: integer, default: 2, minimum: 1, maximum: 3 }
+                modelConfig: { type: object }
+      responses:
+        '200:
+          description: Conversation tree generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tree: { $ref: '#/components/schemas/ConversationTreeNode' }
+                  turns:
+                    type: array
+                    items: { $ref: '#/components/schemas/ConversationTreeNode' }
+                  totalTurns: { type: integer }
+
+  /api/upload-huggingface:
+    post:
+      tags: [Export]
+      summary: Upload dataset to Hugging Face Hub
+      operationId: uploadHuggingface
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, token, repoName]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/DatasetItem' }
+                token: { type: string }
+                repoName: { type: string }
+                format: { type: string }
+                topic: { type: string }
+      responses:
+        '200:
+          description: Upload successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  url: { type: string }
+                  fileCount: { type: integer }
+                  itemCount: { type: integer }
+
+  /api/validate-dataset:
+    post:
+      tags: [Quality]
+      summary: Validate dataset quality and schema compliance
+      operationId: validateDataset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, format]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/DatasetItem' }
+                format: { type: string, enum: [alpaca, sharegpt, qa, raw] }
+      responses:
+        '200:
+          description: Validation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+
+  /health:
+    get:
+      tags: [System]
+      summary: Health check endpoint
+      description: Check system health and provider availability
+      operationId: healthCheck
+      responses:
+        '200:
+          description: System healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /metrics:
+    get:
+      tags: [System]
+      summary: Prometheus metrics endpoint
+      operationId: getMetrics
+      responses:
+        '200:
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema: { type: string }
+
+components:
+  schemas:
+    DatasetItem:
+      type: object
+      required: [id, format, metadata]
+      properties:
+        id: { type: string }
+        format: { type: string, enum: [alpaca, sharegpt, qa, raw] }
+        topic: { type: string }
+        feedback: { type: string, enum: [positive, negative] }
+        qualityScore: { type: integer, minimum: 0, maximum: 100 }
+        metadata:
+          type: object
+          required: [reasoning, intent, complexity, is_negative]
+          properties:
+            reasoning: { type: string }
+            intent: { type: string }
+            complexity: { type: string, enum: [novice, intermediate, expert] }
+            is_negative: { type: boolean }
+            correction: { type: string }
+            trajectory:
+              type: array
+              items: { $ref: '#/components/schemas/TrajectoryStep' }
+            persona: { $ref: '#/components/schemas/Persona' }
+            interdisciplinary_link: { $ref: '#/components/schemas/InterdisciplinaryLink' }
+        alpaca: { $ref: '#/components/schemas/AlpacaItem' }
+        sharegpt: { $ref: '#/components/schemas/ShareGPTItem' }
+        qa: { $ref: '#/components/schemas/QAItem' }
+        raw: { $ref: '#/components/schemas/RawItem' }
+
+    AlpacaItem:
+      type: object
+      required: [instruction, input, output]
+      properties:
+        instruction: { type: string }
+        input: { type: string }
+        output: { type: string }
+
+    ShareGPTItem:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            type: object
+            required: [role, content]
+            properties:
+              role: { type: string, enum: [system, user, assistant] }
+              content: { type: string }
+
+    QAItem:
+      type: object
+      required: [question, answer]
+      properties:
+        question: { type: string }
+        answer: { type: string }
+
+    RawItem:
+      type: object
+      required: [title, text]
+      properties:
+        title: { type: string }
+        text: { type: string }
+
+    TrajectoryStep:
+      type: object
+      required: [step, phase, content]
+      properties:
+        step: { type: integer }
+        phase: { type: string, enum: [initial_attempt, self_critique, final_correction] }
+        content: { type: string }
+        thought_process: { type: string }
+
+    Persona:
+      type: object
+      properties:
+        role: { type: string }
+        mental_state: { type: string }
+        constraint: { type: string }
+
+    InterdisciplinaryLink:
+      type: object
+      properties:
+        domain_a: { type: string }
+        domain_b: { type: string }
+        synthesis_bridge: { type: string }
+
+    DPOPair:
+      type: object
+      required: [instruction, chosen, rejected, metadata]
+      properties:
+        instruction: { type: string }
+        chosen: { type: string }
+        rejected: { type: string }
+        metadata:
+          type: object
+          required: [source, original_id]
+          properties:
+            source: { type: string }
+            original_id: { type: string }
+            topic: { type: string }
+
+    ConversationTreeNode:
+      type: object
+      required: [turn, role, content, branches]
+      properties:
+        turn: { type: integer }
+        role: { type: string, enum: [user, assistant] }
+        content: { type: string }
+        branches:
+          type: array
+          items: { $ref: '#/components/schemas/ConversationTreeNode' }
+        level: { type: integer }
+
+    GenerateResponse:
+      type: object
+      properties:
+        summary:
+          type: object
+          properties:
+            topic: { type: string }
+            researchSummary: { type: string }
+            sources:
+              type: array
+              items:
+                type: object
+                properties:
+                  title: { type: string }
+                  url: { type: string }
+            subtopics:
+              type: array
+              items: { type: string }
+            knowledgeGraph:
+              type: object
+              properties:
+                nodes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      label: { type: string }
+                      level: { type: integer }
+                edges:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      from: { type: string }
+                      to: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DatasetItem' }
+
+    ValidationResponse:
+      type: object
+      properties:
+        valid: { type: boolean }
+        totalItems: { type: integer }
+        validItems: { type: integer }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              itemIndex: { type: integer }
+              itemId: { type: string }
+              field: { type: string }
+              message: { type: string }
+        warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              itemIndex: { type: integer }
+              itemId: { type: string }
+              message: { type: string }
+
+    HealthResponse:
+      type: object
+      properties:
+        status: { type: string, enum: [healthy, degraded, unhealthy] }
+        timestamp: { type: string, format: date-time }
+        uptime: { type: number }
+        providers:
+          type: object
+          properties:
+            ollama: { $ref: '#/components/schemas/ProviderStatus' }
+            llamacpp: { $ref: '#/components/schemas/ProviderStatus' }
+            gemini: { $ref: '#/components/schemas/ProviderStatus' }
+
+    ProviderStatus:
+      type: object
+      properties:
+        available: { type: boolean }
+        latencyMs: { type: number }
+        lastChecked: { type: string, format: date-time }
+        error: { type: string }

@@ -3,7 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// Utility functions for the LLM Dataset Generator
+export * from './logger';
+export * from './advanced';
+export * from './cache';
+export * from './validation';
 
 export interface ItemMapping {
   id: string;
@@ -200,7 +203,6 @@ export async function withRetry<T>(
     } catch (error) {
       lastError = error as Error;
 
-      // Don't retry non-retryable errors (e.g. 400s, auth failures)
       if (error instanceof ApiError && !error.retryable) {
         throw error;
       }
@@ -285,7 +287,6 @@ export class Logger {
 
 export const logger = Logger.getInstance();
 
-// Memoization utility for caching expensive computations
 export class Memoizer<T, R> {
   private cache = new Map<T, { value: R; timestamp: number }>();
   private readonly maxAge: number;
@@ -317,7 +318,6 @@ export class Memoizer<T, R> {
   }
 }
 
-// JSON Schema utilities for Gemini API
 export function getSchemaForFormat(format: string): Record<string, any> {
   const schema = {
     type: "OBJECT",
@@ -431,19 +431,12 @@ export function getSchemaForFormat(format: string): Record<string, any> {
       schema.properties.items.items.required.push("raw");
       break;
     default:
-      // Fallback for unknown formats
       break;
   }
 
   return schema;
 }
 
-/**
- * Convert the Gemini-style response schema (uppercase type names like "OBJECT"/
- * "STRING") into a standard JSON Schema usable by Ollama structured outputs and
- * llama.cpp's json_schema parameter. Recurses through properties and array
- * items; passes required/enum/description through unchanged.
- */
 export function toJsonSchema(schema: any): any {
   if (Array.isArray(schema)) return schema.map(toJsonSchema);
   if (schema === null || typeof schema !== "object") return schema;
@@ -466,10 +459,9 @@ export function toJsonSchema(schema: any): any {
 }
 
 export function computeQualityScore(item: any): number {
-  let score = 50; // Base score
+  let score = 50;
 
   try {
-    // Extract text content for analysis
     let text = "";
     let reasoning = item.metadata?.reasoning || "";
 
@@ -483,19 +475,16 @@ export function computeQualityScore(item: any): number {
       text = [item.raw.title, item.raw.text].filter(Boolean).join(" ");
     }
 
-    // Length scoring (penalize very short entries)
     if (text.length > 2000) score += 15;
     else if (text.length > 1000) score += 10;
     else if (text.length > 500) score += 5;
     else if (text.length < 100) score -= 15;
 
-    // Reasoning depth
     if (reasoning.length > 500) score += 15;
     else if (reasoning.length > 200) score += 10;
     else if (reasoning.length > 50) score += 5;
     else score -= 10;
 
-    // Vocabulary diversity
     const words = text.toLowerCase().split(/\s+/).filter(Boolean);
     const unique = new Set(words);
     const diversity = words.length > 0 ? unique.size / words.length : 0;
@@ -503,17 +492,14 @@ export function computeQualityScore(item: any): number {
     else if (diversity > 0.5) score += 5;
     else if (diversity < 0.3) score -= 5;
 
-    // Metadata richness
     if (item.metadata?.trajectory) score += 10;
     if (item.metadata?.persona) score += 5;
     if (item.metadata?.interdisciplinary_link) score += 8;
     if (item.metadata?.correction) score += 5;
 
-    // Negative examples get a slight penalty (they're intentionally flawed)
     if (item.metadata?.is_negative) score -= 5;
 
   } catch (e) {
-    // Don't let scoring errors affect the item
   }
 
   return Math.max(0, Math.min(100, Math.round(score)));

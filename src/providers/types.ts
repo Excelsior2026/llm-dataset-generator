@@ -1,18 +1,4 @@
-export type ProviderType = "ollama" | "llamacpp" | "gemini";
-export type ModelFunction = "research" | "generation" | "scoring";
-
-export interface ModelFunctionConfig {
-  provider: ProviderType;
-  model: string;
-  baseUrl?: string;
-  apiKey?: string;
-}
-
-export interface ProviderConfig {
-  research: ModelFunctionConfig;
-  generation: ModelFunctionConfig;
-  scoring: ModelFunctionConfig;
-}
+export { ProviderType, ModelFunction, ModelFunctionConfig, ProviderConfig } from '../types';
 
 export interface GenerateOptions {
   prompt: string;
