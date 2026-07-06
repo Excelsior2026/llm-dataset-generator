@@ -3,36 +3,50 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { DatasetGenerationConfig, DatasetItem, SearchResultSummary, ConversationTreeNode } from "./types";
-import ConfigPanel from "./components/ConfigPanel";
-import ResearchSources from "./components/ResearchSources";
-import MetricsPanel from "./components/MetricsPanel";
-import DatasetViewer from "./components/DatasetViewer";
-import { Terminal, AlertTriangle, Save, FolderOpen, Trash2 } from "lucide-react";
-import { saveItems, loadItems, loadItemsAsync, saveSummary, loadSummary, loadSummaryAsync, saveConfig, loadConfig, saveNamedDataset, loadAllDatasets, deleteNamedDataset, clearCurrentSession, SavedDataset } from "./utils/persistence";
-import { computeAllScores } from "./utils/index";
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { DatasetGenerationConfig, DatasetItem, SearchResultSummary, ConversationTreeNode } from './types';
+import ConfigPanel from './components/ConfigPanel';
+import ResearchSources from './components/ResearchSources';
+import MetricsPanel from './components/MetricsPanel';
+import DatasetViewer from './components/DatasetViewer';
+import { Terminal, AlertTriangle, Save, FolderOpen, Trash2 } from 'lucide-react';
+import {
+  saveItems,
+  loadItems,
+  loadItemsAsync,
+  saveSummary,
+  loadSummary,
+  loadSummaryAsync,
+  saveConfig,
+  loadConfig,
+  saveNamedDataset,
+  loadAllDatasets,
+  deleteNamedDataset,
+  clearCurrentSession,
+  SavedDataset,
+} from './utils/persistence';
+import { computeAllScores } from './utils/index';
 
 export default function App() {
   const defaultConfig: DatasetGenerationConfig = {
-    topic: "",
-    secondaryTopic: "",
+    topic: '',
+    secondaryTopic: '',
     size: 10,
-    format: "alpaca",
+    format: 'alpaca',
     temperature: 0.7,
-    systemPromptText: "You are a professional instructor. Generate detailed, structured instruction-following pairs.",
-    tone: "explanatory",
-    complexity: "intermediate",
+    systemPromptText: 'You are a professional instructor. Generate detailed, structured instruction-following pairs.',
+    tone: 'explanatory',
+    complexity: 'intermediate',
     redTeam: false,
   };
 
   const [config, setConfig] = useState<DatasetGenerationConfig>(() => loadConfig() || defaultConfig);
   const [researchSummary, setResearchSummary] = useState<SearchResultSummary | null>(() => loadSummary());
   const [items, setItems] = useState<DatasetItem[]>(() => loadItems());
-  
+
   // Loader States
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState("");
+  const [loadingStep, setLoadingStep] = useState('');
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
 
@@ -40,7 +54,7 @@ export default function App() {
   const [savedDatasets, setSavedDatasets] = useState<SavedDataset[]>(() => loadAllDatasets());
   const [showSavedPanel, setShowSavedPanel] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [saveDatasetName, setSaveDatasetName] = useState("");
+  const [saveDatasetName, setSaveDatasetName] = useState('');
 
   // Hydrate persisted state from IndexedDB (the primary store) after mount.
   // Until hydration finishes, skip auto-persist so the initial empty state
@@ -59,13 +73,21 @@ export default function App() {
         hydratedRef.current = true;
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Auto-persist items and summary on change
-  useEffect(() => { if (hydratedRef.current) saveItems(items); }, [items]);
-  useEffect(() => { if (researchSummary) saveSummary(researchSummary); }, [researchSummary]);
-  useEffect(() => { saveConfig(config); }, [config]);
+  useEffect(() => {
+    if (hydratedRef.current) saveItems(items);
+  }, [items]);
+  useEffect(() => {
+    if (researchSummary) saveSummary(researchSummary);
+  }, [researchSummary]);
+  useEffect(() => {
+    saveConfig(config);
+  }, [config]);
 
   const handleUpdateItems = useCallback((newItems: DatasetItem[]) => {
     setItems(newItems);
@@ -73,10 +95,10 @@ export default function App() {
 
   const handleSaveDataset = () => {
     const name = saveDatasetName.trim() || `Dataset ${new Date().toLocaleDateString()}`;
-    saveNamedDataset(name, items, researchSummary, config.topic || researchSummary?.topic || "", config.format);
+    saveNamedDataset(name, items, researchSummary, config.topic || researchSummary?.topic || '', config.format);
     setSavedDatasets(loadAllDatasets());
     setSaveDialogOpen(false);
-    setSaveDatasetName("");
+    setSaveDatasetName('');
   };
 
   const handleLoadDataset = (dataset: SavedDataset) => {
@@ -104,14 +126,14 @@ export default function App() {
     if (items.length === 0) return;
     setSelfPlaying(true);
     try {
-      const res = await fetch("/api/self-play", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/self-play', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items, cycles: 3, modelConfig: config.modelConfig }),
       });
       const data = await res.json();
       if (res.ok && data.items) setItems(data.items);
-      else setErrorCode(data.error || "Self-play failed");
+      else setErrorCode(data.error || 'Self-play failed');
     } catch (err: any) {
       setErrorCode(err.message);
     } finally {
@@ -126,14 +148,14 @@ export default function App() {
     if (items.length === 0) return;
     setEvolving(true);
     try {
-      const res = await fetch("/api/evolve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/evolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items, count, modelConfig: config.modelConfig }),
       });
       const data = await res.json();
       if (res.ok && data.items) setItems(prev => [...data.items, ...prev]);
-      else setErrorCode(data.error || "Evolution failed");
+      else setErrorCode(data.error || 'Evolution failed');
     } catch (err: any) {
       setErrorCode(err.message);
     } finally {
@@ -150,14 +172,14 @@ export default function App() {
     if (!topic.trim()) return;
     setGeneratingTree(true);
     try {
-      const res = await fetch("/api/generate-tree", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/generate-tree', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic, depth: 3, branches: 2, modelConfig: config.modelConfig }),
       });
       const data = await res.json();
       if (res.ok && data.tree) setConversationTree(data.tree);
-      else setErrorCode(data.error || "Tree generation failed");
+      else setErrorCode(data.error || 'Tree generation failed');
     } catch (err: any) {
       setErrorCode(err.message);
     } finally {
@@ -173,7 +195,7 @@ export default function App() {
     setErrorCode(null);
     setItems([]);
     setResearchSummary(null);
-    setLoadingStep("Connecting to generation stream...");
+    setLoadingStep('Connecting to generation stream...');
 
     // Build query params for SSE endpoint
     const effectiveTopic = config.secondaryTopic
@@ -187,14 +209,16 @@ export default function App() {
       temperature: String(config.temperature),
       tone: config.tone,
       complexity: config.complexity,
-      redTeam: config.redTeam ? "true" : "false",
+      redTeam: config.redTeam ? 'true' : 'false',
       primaryTopic: config.topic,
-      secondaryTopic: config.secondaryTopic || "",
-      modelConfig: JSON.stringify(config.modelConfig || {
-        research: { provider: "ollama", model: "llama3.2:3b", baseUrl: "http://localhost:11434" },
-        generation: { provider: "ollama", model: "qwen2.5:7b", baseUrl: "http://localhost:11434" },
-        scoring: { provider: "ollama", model: "llama3.2:3b", baseUrl: "http://localhost:11434" },
-      }),
+      secondaryTopic: config.secondaryTopic || '',
+      modelConfig: JSON.stringify(
+        config.modelConfig || {
+          research: { provider: 'ollama', model: 'llama3.2:3b', baseUrl: 'http://localhost:11434' },
+          generation: { provider: 'ollama', model: 'qwen2.5:7b', baseUrl: 'http://localhost:11434' },
+          scoring: { provider: 'ollama', model: 'llama3.2:3b', baseUrl: 'http://localhost:11434' },
+        }
+      ),
     });
 
     let summary: SearchResultSummary | null = null;
@@ -206,19 +230,19 @@ export default function App() {
     const timeout = setTimeout(() => {
       if (!completed) {
         serverErrorReceived = true;
-        setErrorCode("Stream timed out — no response from server. Check your GEMINI_API_KEY.");
+        setErrorCode('Stream timed out — no response from server. Check your GEMINI_API_KEY.');
         eventSource.close();
         setIsLoading(false);
-        setLoadingStep("");
+        setLoadingStep('');
       }
     }, 30000);
 
-    eventSource.addEventListener("status", (e) => {
+    eventSource.addEventListener('status', e => {
       const data = JSON.parse(e.data);
       setLoadingStep(data.message);
     });
 
-    eventSource.addEventListener("research_done", (e) => {
+    eventSource.addEventListener('research_done', e => {
       const data = JSON.parse(e.data);
       summary = {
         topic: config.topic,
@@ -229,14 +253,14 @@ export default function App() {
       };
     });
 
-    eventSource.addEventListener("batch_done", (e) => {
+    eventSource.addEventListener('batch_done', e => {
       const data = JSON.parse(e.data);
       const scored = computeAllScores(data.items);
       setItems(prev => [...prev, ...scored]);
       setLoadingStep(`Received batch ${data.batchIndex + 1}/${data.totalBatches} (${data.batchSize} items)`);
     });
 
-    eventSource.addEventListener("complete", (e) => {
+    eventSource.addEventListener('complete', e => {
       completed = true;
       clearTimeout(timeout);
       const data = JSON.parse(e.data);
@@ -245,13 +269,13 @@ export default function App() {
       } else if (summary) {
         setResearchSummary(summary);
       }
-      setLoadingStep("Generation complete!");
+      setLoadingStep('Generation complete!');
       eventSource.close();
       setIsLoading(false);
-      setTimeout(() => setLoadingStep(""), 1500);
+      setTimeout(() => setLoadingStep(''), 1500);
     });
 
-    eventSource.addEventListener("error", (e) => {
+    eventSource.addEventListener('error', e => {
       clearTimeout(timeout);
       try {
         const raw = (e as MessageEvent).data;
@@ -262,7 +286,7 @@ export default function App() {
             setErrorCode(data.error);
             eventSource.close();
             setIsLoading(false);
-            setLoadingStep("");
+            setLoadingStep('');
             return;
           }
         }
@@ -270,10 +294,10 @@ export default function App() {
         // ignore parse errors for native error events
       }
       if (!serverErrorReceived) {
-        setErrorCode("Stream disconnected unexpectedly");
+        setErrorCode('Stream disconnected unexpectedly');
         eventSource.close();
         setIsLoading(false);
-        setLoadingStep("");
+        setLoadingStep('');
       }
     });
   };
@@ -287,16 +311,16 @@ export default function App() {
 
     // Extract already created prompts to send to model for redundancy checks
     const existingPrompts = items.map(itm => {
-      if (itm.format === "alpaca" && itm.alpaca) return itm.alpaca.instruction;
-      if (itm.format === "sharegpt" && itm.sharegpt) return itm.sharegpt.messages.map(m => m.content).join(" ");
-      if (itm.format === "qa" && itm.qa) return itm.qa.question;
-      return itm.raw?.title || "";
+      if (itm.format === 'alpaca' && itm.alpaca) return itm.alpaca.instruction;
+      if (itm.format === 'sharegpt' && itm.sharegpt) return itm.sharegpt.messages.map(m => m.content).join(' ');
+      if (itm.format === 'qa' && itm.qa) return itm.qa.question;
+      return itm.raw?.title || '';
     });
 
     try {
-      const response = await fetch("/api/generate-more", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/generate-more', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: config.topic,
           researchSummary: researchSummary.researchSummary,
@@ -305,21 +329,21 @@ export default function App() {
           tone: config.tone,
           complexity: config.complexity,
           existingPrompts: existingPrompts,
-          modelConfig: config.modelConfig
-        })
+          modelConfig: config.modelConfig,
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Could not generate additional synthetic instances.");
+        throw new Error(data.error || 'Could not generate additional synthetic instances.');
       }
 
       // Prepend additional records to list
       setItems(prevItems => [...computeAllScores(data.items), ...prevItems]);
     } catch (err: any) {
       console.error(err);
-      setErrorCode(err.message || "An unresolved breakdown occurred while expanding records.");
+      setErrorCode(err.message || 'An unresolved breakdown occurred while expanding records.');
     } finally {
       setIsLoadingMore(false);
     }
@@ -327,12 +351,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 selection:text-indigo-900 pb-12">
-      
       {/* Upper Navigation Rail */}
       <HeaderBar errorCode={errorCode} />
 
       <main className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 mt-6">
-        
         {/* Error notification banner */}
         {errorCode && (
           <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl shadow-xs mb-6 flex items-start gap-3">
@@ -340,9 +362,11 @@ export default function App() {
             <div>
               <h4 className="text-sm font-bold text-amber-900">Synthesis Warning</h4>
               <p className="text-xs text-amber-700 mt-1 leading-relaxed">{errorCode}</p>
-              {errorCode.includes("GEMINI_API_KEY") && (
+              {errorCode.includes('GEMINI_API_KEY') && (
                 <p className="text-xs text-amber-700/80 mt-1.5 font-medium">
-                  💡 Tips: Set your <strong>GEMINI_API_KEY</strong> in the <strong>.env</strong> file, or configure it under <strong>Model Configuration</strong> in the control panel. For local-only usage (Ollama/llama.cpp), no API key is needed.
+                  💡 Tips: Set your <strong>GEMINI_API_KEY</strong> in the <strong>.env</strong> file, or configure it
+                  under <strong>Model Configuration</strong> in the control panel. For local-only usage
+                  (Ollama/llama.cpp), no API key is needed.
                 </p>
               )}
             </div>
@@ -351,7 +375,6 @@ export default function App() {
 
         {/* Master Two-Column Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
           {/* LEFT SIDEBAR COLUMN: 5/12 widths */}
           <div className="col-span-1 lg:col-span-5 space-y-6">
             <ConfigPanel
@@ -362,16 +385,12 @@ export default function App() {
               loadingStep={loadingStep}
             />
 
-            {researchSummary && (
-              <ResearchSources summary={researchSummary} />
-            )}
+            {researchSummary && <ResearchSources summary={researchSummary} />}
 
             {/* Saved Datasets Management Panel */}
             <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  Saved Datasets
-                </h2>
+                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Saved Datasets</h2>
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => setSaveDialogOpen(!saveDialogOpen)}
@@ -415,8 +434,8 @@ export default function App() {
                       className="flex-1 text-xs bg-white border border-slate-200 rounded-md py-1.5 px-2.5 text-slate-800 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       placeholder="e.g. Physics Q&A v1"
                       value={saveDatasetName}
-                      onChange={(e) => setSaveDatasetName(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSaveDataset()}
+                      onChange={e => setSaveDatasetName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleSaveDataset()}
                     />
                     <button
                       onClick={handleSaveDataset}
@@ -431,7 +450,7 @@ export default function App() {
               {/* Saved Datasets List */}
               {showSavedPanel && savedDatasets.length > 0 && (
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {savedDatasets.map((ds) => (
+                  {savedDatasets.map(ds => (
                     <div
                       key={ds.id}
                       className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-2.5 group hover:border-indigo-200 transition-colors"
@@ -439,7 +458,7 @@ export default function App() {
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold text-slate-700 truncate">{ds.name}</p>
                         <p className="text-[10px] text-slate-400 mt-0.5">
-                          {ds.topic || "Untitled"} · {ds.itemCount} items · {ds.format}
+                          {ds.topic || 'Untitled'} · {ds.itemCount} items · {ds.format}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 ml-2 shrink-0">
@@ -479,8 +498,8 @@ export default function App() {
               items={items}
               onUpdateItems={handleUpdateItems}
               format={config.format}
-              topic={config.topic || researchSummary?.topic || "Custom Corpus"}
-              researchSummary={researchSummary?.researchSummary || ""}
+              topic={config.topic || researchSummary?.topic || 'Custom Corpus'}
+              researchSummary={researchSummary?.researchSummary || ''}
               isLoadingMore={isLoadingMore}
               onSynthesizeMore={handleSynthesizeMore}
               onSelfPlay={handleSelfPlay}
@@ -494,7 +513,6 @@ export default function App() {
               modelConfig={config.modelConfig}
             />
           </div>
-
         </div>
       </main>
     </div>
@@ -512,17 +530,22 @@ function HeaderBar({ errorCode }: HeaderBarProps) {
   return (
     <header className="h-16 bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-full flex items-center justify-between">
-        
         {/* Brand identity */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shrink-0 shadow-sm shadow-indigo-600/10" id="brand-logo-frame">
+          <div
+            className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shrink-0 shadow-sm shadow-indigo-600/10"
+            id="brand-logo-frame"
+          >
             <div className="w-4 h-4 border-2 border-white rounded-xs" />
           </div>
           <div className="flex items-baseline gap-2">
             <h1 className="font-bold text-lg md:text-xl tracking-tight text-slate-800 leading-none" id="brand-title">
               TrainEngine<span className="text-indigo-600">.ai</span>
             </h1>
-            <span className="text-[10px] md:text-xs text-slate-400 pl-2 border-l border-slate-200 font-medium hidden sm:inline-block" id="brand-subtitle">
+            <span
+              className="text-[10px] md:text-xs text-slate-400 pl-2 border-l border-slate-200 font-medium hidden sm:inline-block"
+              id="brand-subtitle"
+            >
               LLM Dataset Generator
             </span>
             <span className="text-[9px] text-slate-300 font-mono pl-1.5 hidden sm:inline-block">v1.0.0</span>
@@ -531,14 +554,20 @@ function HeaderBar({ errorCode }: HeaderBarProps) {
 
         {/* Environmental indicators and actions */}
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-full border border-slate-200" id="badge-host-info">
-            <div className={`w-2 h-2 rounded-full ${errorCode ? "bg-amber-500 animate-pulse" : "bg-emerald-500"}`} />
+          <div
+            className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-full border border-slate-200"
+            id="badge-host-info"
+          >
+            <div className={`w-2 h-2 rounded-full ${errorCode ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
             <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-              {errorCode ? "WARN" : "System Ready"}
+              {errorCode ? 'WARN' : 'System Ready'}
             </span>
           </div>
 
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 text-slate-500 text-[10px] font-mono font-bold rounded-lg border border-slate-100" id="badge-port-info">
+          <div
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 text-slate-500 text-[10px] font-mono font-bold rounded-lg border border-slate-100"
+            id="badge-port-info"
+          >
             <Terminal className="w-3.5 h-3.5 text-slate-400" />
             <span>PORT 3000</span>
           </div>
@@ -547,7 +576,6 @@ function HeaderBar({ errorCode }: HeaderBarProps) {
             AI
           </div>
         </div>
-
       </div>
     </header>
   );

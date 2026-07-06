@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
-import { SearchResultSummary } from "../types";
-import { Globe, ChevronDown, ChevronUp, BookOpen, Layers } from "lucide-react";
-import KnowledgeGraph from "./KnowledgeGraph";
+import React, { useState } from 'react';
+import { SearchResultSummary } from '../types';
+import { Globe, ChevronDown, ChevronUp, BookOpen, Layers } from 'lucide-react';
+import KnowledgeGraph from './KnowledgeGraph';
 
 interface ResearchSourcesProps {
   summary: SearchResultSummary;
@@ -44,11 +44,11 @@ export default function ResearchSources({ summary }: ResearchSourcesProps) {
             <h3 className="text-sm font-semibold text-slate-800 tracking-tight capitalize" id="research-title">
               {summary.topic}
             </h3>
-            
+
             <div className="mt-2 text-sm text-slate-600 leading-relaxed max-h-60 overflow-y-auto pr-2 bg-slate-50 rounded-lg p-3.5 border border-slate-100">
-              {summary.researchSummary.split("\n\n").map((par, i) => (
-                <p key={i} className={i > 0 ? "mt-3" : ""}>
-                   {par}
+              {summary.researchSummary.split('\n\n').map((par, i) => (
+                <p key={i} className={i > 0 ? 'mt-3' : ''}>
+                  {par}
                 </p>
               ))}
             </div>
@@ -109,10 +109,7 @@ export default function ResearchSources({ summary }: ResearchSourcesProps) {
           {/* Knowledge Graph */}
           {summary.knowledgeGraph && summary.knowledgeGraph.nodes && summary.knowledgeGraph.nodes.length > 0 && (
             <div className="pt-3 mt-2">
-              <KnowledgeGraph
-                nodes={summary.knowledgeGraph.nodes}
-                edges={summary.knowledgeGraph.edges}
-              />
+              <KnowledgeGraph nodes={summary.knowledgeGraph.nodes} edges={summary.knowledgeGraph.edges} />
             </div>
           )}
         </div>

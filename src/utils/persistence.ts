@@ -1,15 +1,15 @@
-import { DatasetItem, SearchResultSummary, DatasetGenerationConfig } from "../types";
+import { DatasetItem, SearchResultSummary, DatasetGenerationConfig } from '../types';
 
 const STORAGE_KEYS = {
-  ITEMS: "llm-dataset-generator:items",
-  SUMMARY: "llm-dataset-generator:summary",
-  CONFIG: "llm-dataset-generator:config",
-  SAVED_DATASETS: "llm-dataset-generator:saved-datasets",
+  ITEMS: 'llm-dataset-generator:items',
+  SUMMARY: 'llm-dataset-generator:summary',
+  CONFIG: 'llm-dataset-generator:config',
+  SAVED_DATASETS: 'llm-dataset-generator:saved-datasets',
 };
 
-const DB_NAME = "LLMDatasetGenerator";
+const DB_NAME = 'LLMDatasetGenerator';
 const DB_VERSION = 1;
-const STORE_NAME = "datasets";
+const STORE_NAME = 'datasets';
 
 // In-memory cache for synchronous reads
 let memoryCache: Record<string, any> = {};
@@ -32,7 +32,7 @@ async function idbGet(key: string): Promise<any> {
   try {
     const db = await openDB();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readonly");
+      const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
       const req = store.get(key);
       req.onsuccess = () => resolve(req.result);
@@ -47,7 +47,7 @@ async function idbSet(key: string, value: any): Promise<void> {
   try {
     const db = await openDB();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
+      const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
       store.put(value, key);
       tx.oncomplete = () => resolve();
@@ -62,7 +62,7 @@ async function idbDelete(key: string): Promise<void> {
   try {
     const db = await openDB();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
+      const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
       store.delete(key);
       tx.oncomplete = () => resolve();
@@ -77,12 +77,14 @@ function localStorageFallbackSet(key: string, value: any): boolean {
   try {
     const serialized = JSON.stringify(value);
     if (serialized.length > 4_500_000) {
-      console.warn(`Storage quota warning: ${key} is ${(serialized.length / 1024 / 1024).toFixed(1)}MB, approaching localStorage 5MB limit`);
+      console.warn(
+        `Storage quota warning: ${key} is ${(serialized.length / 1024 / 1024).toFixed(1)}MB, approaching localStorage 5MB limit`
+      );
     }
     localStorage.setItem(key, serialized);
     return true;
   } catch (e: any) {
-    if (e instanceof DOMException && (e.name === "QuotaExceededError" || e.code === 22)) {
+    if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22)) {
       console.error(`localStorage quota exceeded for key "${key}". Consider reducing dataset size.`);
     }
     return false;
@@ -155,7 +157,7 @@ export function saveConfig(config: DatasetGenerationConfig): void {
   try {
     localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
   } catch {
-    console.warn("Failed to persist config");
+    console.warn('Failed to persist config');
   }
 }
 
@@ -179,9 +181,15 @@ export interface SavedDataset {
   summary: SearchResultSummary | null;
 }
 
-export function saveNamedDataset(name: string, items: DatasetItem[], summary: SearchResultSummary | null, topic: string, format: string): void {
+export function saveNamedDataset(
+  name: string,
+  items: DatasetItem[],
+  summary: SearchResultSummary | null,
+  topic: string,
+  format: string
+): void {
   const datasets = loadAllDatasets();
-  const existingIdx = datasets.findIndex((d) => d.name === name);
+  const existingIdx = datasets.findIndex(d => d.name === name);
   const dataset: SavedDataset = {
     id: `ds-${Date.now()}`,
     name,
@@ -218,7 +226,7 @@ export function loadAllDatasets(): SavedDataset[] {
 
 export function deleteNamedDataset(name: string): void {
   const datasets = loadAllDatasets();
-  const filtered = datasets.filter((d) => d.name !== name);
+  const filtered = datasets.filter(d => d.name !== name);
   localStorageFallbackSet(STORAGE_KEYS.SAVED_DATASETS, filtered);
   idbSet(STORAGE_KEYS.SAVED_DATASETS, filtered).catch(() => {});
 }

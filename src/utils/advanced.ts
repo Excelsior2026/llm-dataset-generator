@@ -15,7 +15,7 @@ export interface CircuitBreakerOptions {
 export enum CircuitState {
   CLOSED = 'CLOSED',
   OPEN = 'OPEN',
-  HALF_OPEN = 'HALF_OPEN'
+  HALF_OPEN = 'HALF_OPEN',
 }
 
 export class CircuitBreaker extends EventEmitter {
@@ -23,7 +23,7 @@ export class CircuitBreaker extends EventEmitter {
   private failureCount = 0;
   private nextAttempt = Date.now();
   private successCount = 0;
-  
+
   private readonly failureThreshold: number;
   private readonly resetTimeout: number;
   private readonly monitoringPeriod: number;
@@ -97,7 +97,7 @@ export class CircuitBreaker extends EventEmitter {
     return {
       state: this.state,
       failureCount: this.failureCount,
-      nextAttempt: this.nextAttempt
+      nextAttempt: this.nextAttempt,
     };
   }
 }
@@ -176,18 +176,18 @@ export class RateLimiter {
   isAllowed(key: string): { allowed: boolean; remaining: number; resetAt: number } {
     const now = Date.now();
     const windowStart = now - this.windowMs;
-    
+
     let userRequests = this.requests.get(key) || [];
     userRequests = userRequests.filter(timestamp => timestamp > windowStart);
-    
+
     const remaining = Math.max(0, this.maxRequests - userRequests.length);
     const allowed = userRequests.length < this.maxRequests;
-    
+
     if (allowed) {
       userRequests.push(now);
       this.requests.set(key, userRequests);
     }
-    
+
     const resetAt = now + this.windowMs;
     return { allowed, remaining, resetAt };
   }
@@ -282,11 +282,14 @@ export class MetricsCollector {
     return this.gauges.get(key);
   }
 
-  getHistogramStats(name: string, labels?: Record<string, string>): { 
-    count: number; 
-    sum: number; 
-    avg: number; 
-    min: number; 
+  getHistogramStats(
+    name: string,
+    labels?: Record<string, string>
+  ): {
+    count: number;
+    sum: number;
+    avg: number;
+    min: number;
     max: number;
     p50: number;
     p95: number;
@@ -299,7 +302,7 @@ export class MetricsCollector {
     const sorted = [...values].sort((a, b) => a - b);
     const sum = values.reduce((a, b) => a + b, 0);
     const count = values.length;
-    
+
     // sorted is non-empty here (guarded above), so indexed reads are safe
     const percentile = (p: number) => {
       const idx = Math.ceil((p / 100) * sorted.length) - 1;
@@ -314,7 +317,7 @@ export class MetricsCollector {
       max: sorted[sorted.length - 1]!,
       p50: percentile(50),
       p95: percentile(95),
-      p99: percentile(99)
+      p99: percentile(99),
     };
   }
 
@@ -378,7 +381,7 @@ export class RequestContextManager {
     const context: RequestContext = {
       correlationId,
       startTime: Date.now(),
-      labels: labels || {}
+      labels: labels || {},
     };
     this.contexts.set(correlationId, context);
     return context;

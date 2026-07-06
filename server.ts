@@ -3,20 +3,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import express, { Request, Response, NextFunction } from "express";
-import path from "path";
-import dotenv from "dotenv";
-import { withRetry, createTimeoutPromise, createItemMapper, getSchemaForFormat, logger } from "./src/utils/index";
-import { createProvider } from "./src/providers/ProviderFactory";
-import { ProviderConfig, DEFAULT_PROVIDER_CONFIG } from "./src/providers/types";
-import { GeminiProvider } from "./src/providers/GeminiProvider";
+import express, { Request, Response, NextFunction } from 'express';
+import path from 'path';
+import dotenv from 'dotenv';
+import { withRetry, createTimeoutPromise, createItemMapper, getSchemaForFormat, logger } from './src/utils/index';
+import { createProvider } from './src/providers/ProviderFactory';
+import { ProviderConfig, DEFAULT_PROVIDER_CONFIG } from './src/providers/types';
+import { GeminiProvider } from './src/providers/GeminiProvider';
 
 dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json({ limit: "50mb" }));
+app.use(express.json({ limit: '50mb' }));
 
 // Request logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -28,14 +28,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   if (!err) return next();
   logger.error(`Error in ${req.method} ${req.path}:`, err);
-  res.status(500).json({ error: "Internal server error during synthesis pipeline" });
+  res.status(500).json({ error: 'Internal server error during synthesis pipeline' });
 });
 
 function parseModelConfig(query: Record<string, any>): ProviderConfig {
   const raw = query.modelConfig;
   if (!raw) return DEFAULT_PROVIDER_CONFIG;
   try {
-    const mc = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const mc = typeof raw === 'string' ? JSON.parse(raw) : raw;
     return {
       research: { ...DEFAULT_PROVIDER_CONFIG.research, ...mc.research },
       generation: { ...DEFAULT_PROVIDER_CONFIG.generation, ...mc.generation },
@@ -46,17 +46,15 @@ function parseModelConfig(query: Record<string, any>): ProviderConfig {
   }
 }
 
-
-
 // Clean JSON response helper
 function cleanJsonString(str: string): string {
   let cleaned = str.trim();
-  if (cleaned.startsWith("```json")) {
+  if (cleaned.startsWith('```json')) {
     cleaned = cleaned.substring(7);
-  } else if (cleaned.startsWith("```")) {
+  } else if (cleaned.startsWith('```')) {
     cleaned = cleaned.substring(3);
   }
-  if (cleaned.endsWith("```")) {
+  if (cleaned.endsWith('```')) {
     cleaned = cleaned.substring(0, cleaned.length - 3);
   }
   return cleaned.trim();
@@ -70,23 +68,32 @@ function sendSSEEvent(res: Response, event: string, data: any) {
 /**
  * SSE Streaming endpoint for real-time generation progress
  */
-app.get("/api/generate/stream", async (req: Request, res: Response) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
+app.get('/api/generate/stream', async (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
   try {
-    const { topic, size = "10", format = "alpaca", temperature = "0.7", tone = "explanatory", complexity = "intermediate", redTeam, secondaryTopic } = req.query as Record<string, string>;
+    const {
+      topic,
+      size = '10',
+      format = 'alpaca',
+      temperature = '0.7',
+      tone = 'explanatory',
+      complexity = 'intermediate',
+      redTeam,
+      secondaryTopic,
+    } = req.query as Record<string, string>;
 
-    if (!topic || topic.trim() === "") {
-      sendSSEEvent(res, "error", { error: "Missing required field 'topic'" });
+    if (!topic || topic.trim() === '') {
+      sendSSEEvent(res, 'error', { error: "Missing required field 'topic'" });
       res.end();
       return;
     }
 
-    const isRedTeam = redTeam === "true";
-    const isCrossDomain = secondaryTopic && secondaryTopic !== "";
+    const isRedTeam = redTeam === 'true';
+    const isCrossDomain = secondaryTopic && secondaryTopic !== '';
     const temp = parseFloat(temperature) || 0.7;
     const modelConfig = parseModelConfig(req.query);
 
@@ -94,12 +101,17 @@ app.get("/api/generate/stream", async (req: Request, res: Response) => {
     const genProvider = createProvider(modelConfig.generation);
     const scoringProvider = createProvider(modelConfig.scoring);
 
-    const usesGeminiResearch = modelConfig.research.provider === "gemini" && process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY";
+    const usesGeminiResearch =
+      modelConfig.research.provider === 'gemini' &&
+      process.env.GEMINI_API_KEY &&
+      process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY';
 
     if (usesGeminiResearch) {
-      sendSSEEvent(res, "status", { message: "Step 1: Searching the web for recent grounding facts..." });
+      sendSSEEvent(res, 'status', { message: 'Step 1: Searching the web for recent grounding facts...' });
     } else {
-      sendSSEEvent(res, "status", { message: `Step 1: Researching topic using ${modelConfig.research.provider} (${modelConfig.research.model})...` });
+      sendSSEEvent(res, 'status', {
+        message: `Step 1: Researching topic using ${modelConfig.research.provider} (${modelConfig.research.model})...`,
+      });
     }
 
     let researchSummary: string;
@@ -124,48 +136,54 @@ Format the end of your response exactly like this:
 [SUBTOPICS] Subtopic A | Subtopic B ... [END]
 [KNOWLEDGE_GRAPH] { "nodes": [...], "edges": [...] } [END]`,
       });
-      researchSummary = searchResult.text || "";
+      researchSummary = searchResult.text || '';
       sources = searchResult.sources;
     } else {
       researchSummary = await researchProvider.generate({
         prompt: `Research the following topic thoroughly and provide a detailed overview:\n\nTopic: "${topic}"\n\nCover the following aspects:\n1. Fundamental concepts, major definitions, and underlying rules.\n2. Practical use cases and applications.\n3. Key subtopics and related concepts.\n\nAt the end of your response, include:\n[SUBTOPICS] Subtopic A | Subtopic B | Subtopic C | Subtopic D | Subtopic E | Subtopic F [END]\n\nThen include a knowledge graph as JSON:\n[KNOWLEDGE_GRAPH] { "nodes": [{"id":"core","label":"Core Concepts","level":0}, {"id":"adv","label":"Advanced Topics","level":1}], "edges": [{"from":"core","to":"adv"}] } [END]`,
-        systemPrompt: "You are a research assistant. Provide factual, well-structured information.",
+        systemPrompt: 'You are a research assistant. Provide factual, well-structured information.',
         temperature: 0.4,
       });
     }
 
     const subtopicMatch = researchSummary.match(/\[SUBTOPICS\](.*?)(\[END\]|$)/s);
     if (subtopicMatch) {
-      subtopics = (subtopicMatch[1] ?? "").split("|").map(s => s.trim()).filter(Boolean);
-      researchSummary = researchSummary.replace(/\[SUBTOPICS\].*?(\[END\]|$)/s, "").trim();
+      subtopics = (subtopicMatch[1] ?? '')
+        .split('|')
+        .map(s => s.trim())
+        .filter(Boolean);
+      researchSummary = researchSummary.replace(/\[SUBTOPICS\].*?(\[END\]|$)/s, '').trim();
     }
 
     const kgMatch = researchSummary.match(/\[KNOWLEDGE_GRAPH\](.*?)(\[END\]|$)/s);
     if (kgMatch) {
       try {
-        const parsed = JSON.parse((kgMatch[1] ?? "").trim());
+        const parsed = JSON.parse((kgMatch[1] ?? '').trim());
         if (parsed.nodes && Array.isArray(parsed.nodes) && parsed.edges && Array.isArray(parsed.edges)) {
           knowledgeGraph = parsed;
         }
       } catch (e) {
-        logger.warn("Failed to parse knowledge graph");
+        logger.warn('Failed to parse knowledge graph');
       }
-      researchSummary = researchSummary.replace(/\[KNOWLEDGE_GRAPH\].*?(\[END\]|$)/s, "").trim();
+      researchSummary = researchSummary.replace(/\[KNOWLEDGE_GRAPH\].*?(\[END\]|$)/s, '').trim();
     }
 
     if (subtopics.length === 0) {
       subtopics = [
-        "Core Foundations", "Advanced Concepts", "Practical Demonstrations",
-        "Historical Background & Milestones", "Contemporary Controversies & Future Work"
+        'Core Foundations',
+        'Advanced Concepts',
+        'Practical Demonstrations',
+        'Historical Background & Milestones',
+        'Contemporary Controversies & Future Work',
       ];
     }
 
-    sendSSEEvent(res, "research_done", { researchSummary, sources, subtopics, knowledgeGraph });
+    sendSSEEvent(res, 'research_done', { researchSummary, sources, subtopics, knowledgeGraph });
 
     const targetSize = Math.max(1, Math.min(30, parseInt(size) || 10));
     const batchSize = 5;
     const numBatches = Math.ceil(targetSize / batchSize);
-    sendSSEEvent(res, "status", { message: `Step 2: Generating ${targetSize} items in ${numBatches} batches...` });
+    sendSSEEvent(res, 'status', { message: `Step 2: Generating ${targetSize} items in ${numBatches} batches...` });
 
     const allItems: any[] = [];
 
@@ -180,9 +198,12 @@ Format the end of your response exactly like this:
         return [...subtopics.slice(start), ...subtopics.slice(0, end - subtopics.length)];
       })();
 
-      sendSSEEvent(res, "status", { message: `Generating batch ${idx + 1}/${numBatches} (${itemsInThisBatch} items)...` });
+      sendSSEEvent(res, 'status', {
+        message: `Generating batch ${idx + 1}/${numBatches} (${itemsInThisBatch} items)...`,
+      });
 
-      const redTeamInstruction = isRedTeam ? `
+      const redTeamInstruction = isRedTeam
+        ? `
 CRITICAL: This is an ADVERSARIAL RED-TEAMING generation session. Generate items that:
 - Include subtle logical errors, edge cases, and misleading premises
 - Test model boundaries with ambiguous or underspecified inputs
@@ -192,9 +213,11 @@ CRITICAL: This is an ADVERSARIAL RED-TEAMING generation session. Generate items 
 - For trap examples, 'metadata.correction' must explain the exact flaw
 - Include jailbreak-adjacent prompts that test refusal boundaries
 - Vary between obvious traps (easy to spot) and subtle ones (hard to detect)
-` : '';
+`
+        : '';
 
-      const crossDomainInstruction = isCrossDomain ? `
+      const crossDomainInstruction = isCrossDomain
+        ? `
 CRITICAL: This is a CROSS-DOMAIN SYNTHESIS session. Generate items that:
 - Bridge the conceptual gap between the two primary domains
 - Each item MUST include a meaningful 'metadata.interdisciplinary_link' connecting both fields
@@ -203,11 +226,12 @@ CRITICAL: This is a CROSS-DOMAIN SYNTHESIS session. Generate items that:
 - Include examples of real-world problems that sit at the intersection of both fields
 - Vary items: some focused on Domain A → Domain B transfer, others on Domain B → Domain A
 - Highlight analogous structures, shared patterns, and conceptual mappings
-` : '';
+`
+        : '';
 
       const systemInstruction = `You are an expert AI compiler. Generate ${itemsInThisBatch} training examples in '${format}' layout.
 Ground in this research: ${researchSummary}
-Tone: ${tone}. Complexity: ${complexity}. Subtopics: ${subtopicSubset.join(", ")}.
+Tone: ${tone}. Complexity: ${complexity}. Subtopics: ${subtopicSubset.join(', ')}.
 Output strict JSON matching the schema.${redTeamInstruction}${crossDomainInstruction}`;
 
       try {
@@ -215,13 +239,13 @@ Output strict JSON matching the schema.${redTeamInstruction}${crossDomainInstruc
           prompt: `Synthesize exactly ${itemsInThisBatch} training dataset items. Output valid JSON.`,
           systemPrompt: systemInstruction,
           temperature: temp,
-          responseMimeType: "application/json",
+          responseMimeType: 'application/json',
           responseSchema: getSchemaForFormat(format),
         });
 
         let batchItems: any[] = [];
         try {
-          const parsed = JSON.parse(cleanJsonString(genResult || "{}"));
+          const parsed = JSON.parse(cleanJsonString(genResult || '{}'));
           batchItems = parsed.items || [];
         } catch (e) {
           logger.error(`Batch ${idx} parse error`);
@@ -229,7 +253,9 @@ Output strict JSON matching the schema.${redTeamInstruction}${crossDomainInstruc
 
         // Judge/Refine: audit the batch, rewrite flawed items
         if (batchItems.length > 0) {
-          sendSSEEvent(res, "status", { message: `Auditing batch ${idx + 1}/${numBatches} (${batchItems.length} items)...` });
+          sendSSEEvent(res, 'status', {
+            message: `Auditing batch ${idx + 1}/${numBatches} (${batchItems.length} items)...`,
+          });
           try {
             const judgeResult = await scoringProvider.generate({
               prompt: `You are a world-class logic auditor. Review these ${batchItems.length} training items.
@@ -245,15 +271,15 @@ Output a JSON array of critiques, where each object matches the index of the ite
 Items to audit:
 ${JSON.stringify(batchItems)}`,
               temperature: 0.2,
-              responseMimeType: "application/json",
+              responseMimeType: 'application/json',
             });
 
-            const judgeData = JSON.parse(cleanJsonString(judgeResult || "{}"));
+            const judgeData = JSON.parse(cleanJsonString(judgeResult || '{}'));
             const critiques = judgeData.critiques || [];
             const failedIndices = critiques.filter((c: any) => !c.isValid).map((c: any) => c.index);
 
             if (failedIndices.length > 0) {
-              sendSSEEvent(res, "status", { message: `Refining ${failedIndices.length} items in batch ${idx + 1}...` });
+              sendSSEEvent(res, 'status', { message: `Refining ${failedIndices.length} items in batch ${idx + 1}...` });
 
               const refinerResult = await genProvider.generate({
                 prompt: `You are an expert AI refiner. Rewrite these training items to fix the identified flaws.
@@ -262,12 +288,15 @@ Preserve the original intent and format. Ensure 'metadata.reasoning' is now flaw
 Output JSON: { "refinedItems": [ { "index": number, "item": { ... } } ] }
 
 Input:
-${critiques.filter((c: any) => !c.isValid).map((c: any) => `Item Index ${c.index}: ${JSON.stringify(batchItems[c.index])}\nCritique: ${c.critique}`).join("\n\n")}`,
+${critiques
+  .filter((c: any) => !c.isValid)
+  .map((c: any) => `Item Index ${c.index}: ${JSON.stringify(batchItems[c.index])}\nCritique: ${c.critique}`)
+  .join('\n\n')}`,
                 temperature: 0.4,
-                responseMimeType: "application/json",
+                responseMimeType: 'application/json',
               });
 
-              const refinedData = JSON.parse(cleanJsonString(refinerResult || "{}"));
+              const refinedData = JSON.parse(cleanJsonString(refinerResult || '{}'));
               const refinedItems = refinedData.refinedItems || [];
               refinedItems.forEach((entry: any) => {
                 if (typeof entry.index === 'number' && batchItems[entry.index]) {
@@ -280,10 +309,15 @@ ${critiques.filter((c: any) => !c.isValid).map((c: any) => `Item Index ${c.index
           }
         }
 
-        sendSSEEvent(res, "batch_done", { batchIndex: idx, totalBatches: numBatches, batchSize: batchItems.length, items: batchItems });
+        sendSSEEvent(res, 'batch_done', {
+          batchIndex: idx,
+          totalBatches: numBatches,
+          batchSize: batchItems.length,
+          items: batchItems,
+        });
         allItems.push(...batchItems);
       } catch (e: any) {
-        sendSSEEvent(res, "batch_error", { batchIndex: idx, error: e.message });
+        sendSSEEvent(res, 'batch_error', { batchIndex: idx, error: e.message });
       }
     }
 
@@ -291,18 +325,18 @@ ${critiques.filter((c: any) => !c.isValid).map((c: any) => `Item Index ${c.index
     let idCounter = 1;
     const finalItems = allItems.map((item: any) => {
       const id = `item-${Date.now()}-${idCounter++}`;
-      return mapItem(item, id, "General Concepts");
+      return mapItem(item, id, 'General Concepts');
     });
 
-    sendSSEEvent(res, "complete", {
+    sendSSEEvent(res, 'complete', {
       summary: { topic, researchSummary, sources, subtopics, knowledgeGraph },
       items: finalItems,
     });
 
     res.end();
   } catch (error: any) {
-    logger.error("SSE Error:", error);
-    sendSSEEvent(res, "error", { error: error.message || "Generation failed" });
+    logger.error('SSE Error:', error);
+    sendSSEEvent(res, 'error', { error: error.message || 'Generation failed' });
     res.end();
   }
 });
@@ -310,11 +344,19 @@ ${critiques.filter((c: any) => !c.isValid).map((c: any) => `Item Index ${c.index
 /**
  * Endpoint to query search grounding and build dataset
  */
-app.post("/api/generate", async (req: Request, res: Response) => {
+app.post('/api/generate', async (req: Request, res: Response) => {
   try {
-    const { topic, size = 10, format = "alpaca", temperature = 0.7, tone = "explanatory", complexity = "intermediate", redTeam } = req.body;
+    const {
+      topic,
+      size = 10,
+      format = 'alpaca',
+      temperature = 0.7,
+      tone = 'explanatory',
+      complexity = 'intermediate',
+      redTeam,
+    } = req.body;
 
-    if (!topic || topic.trim() === "") {
+    if (!topic || topic.trim() === '') {
       res.status(400).json({ error: "Missing required field 'topic'" });
       return;
     }
@@ -325,7 +367,10 @@ app.post("/api/generate", async (req: Request, res: Response) => {
     const genProvider = createProvider(modelConfig.generation);
     const scoringProvider = createProvider(modelConfig.scoring);
 
-    const usesGeminiResearch = modelConfig.research.provider === "gemini" && process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY";
+    const usesGeminiResearch =
+      modelConfig.research.provider === 'gemini' &&
+      process.env.GEMINI_API_KEY &&
+      process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY';
 
     // Step 1: Research the topic
     logger.info(`Researching topic: "${topic}"...`);
@@ -349,12 +394,12 @@ Format the end of your response exactly like this:
 [SUBTOPICS] Subtopic A | Subtopic B ... [END]
 [KNOWLEDGE_GRAPH] { "nodes": [...], "edges": [...] } [END]`,
       });
-      researchSummary = searchResult.text || "";
+      researchSummary = searchResult.text || '';
       sources = searchResult.sources;
     } else {
       researchSummary = await researchProvider.generate({
         prompt: `Research the following topic thoroughly and provide a detailed overview:\n\nTopic: "${topic}"\n\nCover:\n1. Fundamental concepts, major definitions, and underlying rules.\n2. Practical use cases and applications.\n3. Key subtopics and related concepts.\n\nAt the end, include:\n[SUBTOPICS] Subtopic A | Subtopic B | Subtopic C | Subtopic D | Subtopic E | Subtopic F [END]\n[KNOWLEDGE_GRAPH] { "nodes": [{"id":"core","label":"Core Concepts","level":0}, {"id":"adv","label":"Advanced Topics","level":1}], "edges": [{"from":"core","to":"adv"}] } [END]`,
-        systemPrompt: "You are a research assistant. Provide factual, well-structured information.",
+        systemPrompt: 'You are a research assistant. Provide factual, well-structured information.',
         temperature: 0.4,
       });
     }
@@ -362,28 +407,34 @@ Format the end of your response exactly like this:
     let subtopics: string[] = [];
     const subtopicMatch = researchSummary.match(/\[SUBTOPICS\](.*?)(\[END\]|$)/s);
     if (subtopicMatch) {
-      subtopics = (subtopicMatch[1] ?? "").split("|").map(s => s.trim()).filter(Boolean);
-      researchSummary = researchSummary.replace(/\[SUBTOPICS\].*?(\[END\]|$)/s, "").trim();
+      subtopics = (subtopicMatch[1] ?? '')
+        .split('|')
+        .map(s => s.trim())
+        .filter(Boolean);
+      researchSummary = researchSummary.replace(/\[SUBTOPICS\].*?(\[END\]|$)/s, '').trim();
     }
 
     let knowledgeGraph = { nodes: [] as any[], edges: [] as any[] };
     const kgMatch = researchSummary.match(/\[KNOWLEDGE_GRAPH\](.*?)(\[END\]|$)/s);
     if (kgMatch) {
       try {
-        const parsed = JSON.parse((kgMatch[1] ?? "").trim());
+        const parsed = JSON.parse((kgMatch[1] ?? '').trim());
         if (parsed.nodes && Array.isArray(parsed.nodes) && parsed.edges && Array.isArray(parsed.edges)) {
           knowledgeGraph = parsed;
         }
       } catch (e) {
-        logger.warn("Failed to parse knowledge graph from AI response");
+        logger.warn('Failed to parse knowledge graph from AI response');
       }
-      researchSummary = researchSummary.replace(/\[KNOWLEDGE_GRAPH\].*?(\[END\]|$)/s, "").trim();
+      researchSummary = researchSummary.replace(/\[KNOWLEDGE_GRAPH\].*?(\[END\]|$)/s, '').trim();
     }
 
     if (subtopics.length === 0) {
       subtopics = [
-        "Core Foundations", "Advanced Concepts", "Practical Demonstrations",
-        "Historical Background & Milestones", "Contemporary Controversies & Future Work"
+        'Core Foundations',
+        'Advanced Concepts',
+        'Practical Demonstrations',
+        'Historical Background & Milestones',
+        'Contemporary Controversies & Future Work',
       ];
     }
 
@@ -407,7 +458,8 @@ Format the end of your response exactly like this:
         return [...subtopics.slice(start), ...subtopics.slice(0, end - subtopics.length)];
       })();
 
-      const redTeamInstruction = isRedTeam ? `
+      const redTeamInstruction = isRedTeam
+        ? `
 CRITICAL: This is an ADVERSARIAL RED-TEAMING session. Generate items that:
 - Include subtle logical errors, edge cases, and misleading premises
 - Test model boundaries with ambiguous or underspecified inputs
@@ -416,7 +468,8 @@ CRITICAL: This is an ADVERSARIAL RED-TEAMING session. Generate items that:
 - For trap examples (is_negative: true), 'metadata.correction' must explain the exact flaw
 - Include jailbreak-adjacent prompts that test refusal boundaries
 - Vary between obvious traps and subtle ones hard to detect
-` : '';
+`
+        : '';
 
       const systemInstruction = `You are an expert AI compiler and high-fidelity synthetic LLM training dataset engine.
 Your purpose is to generate ${itemsInThisBatch} distinct, exceptionally detailed, high-quality, and robust training examples in the '${format}' layout.
@@ -436,7 +489,7 @@ Your output must comply strictly with these criteria:
 - **Complexity Scaling**: Vary the complexity across 'novice', 'intermediate', and 'expert' levels.
 - **Tone/Style**: ${tone}.
 - **Target Complexity**: ${complexity} depth.
-- **Subtopics to target in this specific batch**: ${subtopicSubset.join(", ")}.
+- **Subtopics to target in this specific batch**: ${subtopicSubset.join(', ')}.
 - Ensure every example is highly educational and unique. Avoid repeating similar sentence structures or concepts across items.
 - Output MUST be strict JSON matching the requested schema. Do not insert any Markdown wrappers or explanatory text outside the JSON.${redTeamInstruction}`;
 
@@ -444,19 +497,21 @@ Your output must comply strictly with these criteria:
 
       const generateBatch = async () => {
         // Single-model generation (multi-model consensus skipped for local providers)
-        logger.info(`Generating batch ${idx} with ${modelConfig.generation.provider} (${modelConfig.generation.model})...`);
+        logger.info(
+          `Generating batch ${idx} with ${modelConfig.generation.provider} (${modelConfig.generation.model})...`
+        );
 
         const genResult = await genProvider.generate({
           prompt,
           systemPrompt: systemInstruction,
           temperature,
-          responseMimeType: "application/json",
+          responseMimeType: 'application/json',
           responseSchema: getSchemaForFormat(format),
         });
 
         let items: any[] = [];
         try {
-          const parsed = JSON.parse(cleanJsonString(genResult || "{}"));
+          const parsed = JSON.parse(cleanJsonString(genResult || '{}'));
           items = parsed.items || [];
         } catch (error) {
           logger.error(`Failed to parse JSON from generation:`, error);
@@ -481,10 +536,10 @@ Output a JSON array of critiques, where each object matches the index of the ite
           const judgeResult = await scoringProvider.generate({
             prompt: `${judgePrompt}\n\nItems to audit:\n${JSON.stringify(items)}`,
             temperature: 0.2,
-            responseMimeType: "application/json",
+            responseMimeType: 'application/json',
           });
 
-          const judgeData = JSON.parse(cleanJsonString(judgeResult || "{}"));
+          const judgeData = JSON.parse(cleanJsonString(judgeResult || '{}'));
           const critiques = judgeData.critiques || [];
 
           // Refinement Phase: Fix items that failed the audit
@@ -500,38 +555,37 @@ You MUST output a JSON object containing a 'refinedItems' array, where each obje
 Format: { "refinedItems": [ { "index": 0, "item": { ...original schema... } }, ... ] }
 
 Input:
-${critiques.filter((c: any) => !c.isValid).map((c: any) => `Item Index ${c.index}: ${JSON.stringify(items[c.index])}\nCritique: ${c.critique}`).join("\n\n")}`;
+${critiques
+  .filter((c: any) => !c.isValid)
+  .map((c: any) => `Item Index ${c.index}: ${JSON.stringify(items[c.index])}\nCritique: ${c.critique}`)
+  .join('\n\n')}`;
 
-              const refinerResult = await genProvider.generate({
-                prompt: refinerPrompt,
-                temperature: 0.4,
-                responseMimeType: "application/json",
+            const refinerResult = await genProvider.generate({
+              prompt: refinerPrompt,
+              temperature: 0.4,
+              responseMimeType: 'application/json',
+            });
+
+            try {
+              const refinedData = JSON.parse(cleanJsonString(refinerResult || '{}'));
+              const refinedItems = refinedData.refinedItems || [];
+              refinedItems.forEach((entry: any) => {
+                if (typeof entry.index === 'number' && items[entry.index]) {
+                  items[entry.index] = entry.item;
+                }
               });
-
-              try {
-                const refinedData = JSON.parse(cleanJsonString(refinerResult || "{}"));
-                const refinedItems = refinedData.refinedItems || [];
-                refinedItems.forEach((entry: any) => {
-                  if (typeof entry.index === 'number' && items[entry.index]) {
-                    items[entry.index] = entry.item;
-                  }
-                });
-              } catch (error) {
-                logger.error("Failed to parse refiner response:", error);
-              }
+            } catch (error) {
+              logger.error('Failed to parse refiner response:', error);
+            }
           }
         } catch (error) {
-          logger.error("Failed to run judge/refinement:", error);
+          logger.error('Failed to run judge/refinement:', error);
         }
 
         return items;
       };
 
-      return createTimeoutPromise(
-        withRetry(generateBatch, 2, 500),
-        60000,
-        `Batch ${idx} generation timed out`
-      );
+      return createTimeoutPromise(withRetry(generateBatch, 2, 500), 60000, `Batch ${idx} generation timed out`);
     });
 
     const results = await Promise.allSettled(batchPromises);
@@ -546,14 +600,14 @@ ${critiques.filter((c: any) => !c.isValid).map((c: any) => `Item Index ${c.index
     });
 
     if (rawItems.length === 0) {
-      throw new Error("All batch generations failed. Unable to create dataset.");
+      throw new Error('All batch generations failed. Unable to create dataset.');
     }
 
     const mapItem = createItemMapper(format);
     let idCounter = 1;
     const finalItems = rawItems.map((item: any) => {
       const id = `item-${Date.now()}-${idCounter++}`;
-      return mapItem(item, id, "General Concepts");
+      return mapItem(item, id, 'General Concepts');
     });
 
     res.json({
@@ -561,17 +615,24 @@ ${critiques.filter((c: any) => !c.isValid).map((c: any) => `Item Index ${c.index
       items: finalItems,
     });
   } catch (error: any) {
-    logger.error("Synthesize breakdown:", error);
-    res.status(500).json({ error: error.message || "An unresolved error occurred during server synthesis." });
+    logger.error('Synthesize breakdown:', error);
+    res.status(500).json({ error: error.message || 'An unresolved error occurred during server synthesis.' });
   }
 });
 
 /**
  * Endpoint to generate individual synthetic items based on existing dataset
  */
-app.post("/api/generate-more", async (req: Request, res: Response) => {
+app.post('/api/generate-more', async (req: Request, res: Response) => {
   try {
-    const { researchSummary, format, count = 2, tone = "explanatory", complexity = "intermediate", existingPrompts = [] } = req.body;
+    const {
+      researchSummary,
+      format,
+      count = 2,
+      tone = 'explanatory',
+      complexity = 'intermediate',
+      existingPrompts = [],
+    } = req.body;
 
     if (!researchSummary) {
       res.status(400).json({ error: "Missing required field 'researchSummary'" });
@@ -590,7 +651,7 @@ ${researchSummary}
 
 Your items MUST be entirely distinct from these existing items/prompts that are already in the dataset. DO NOT cover the exact same prompt wording:
 ---
-${existingPrompts.slice(0, 15).join("\n")}
+${existingPrompts.slice(0, 15).join('\n')}
 ---
 
 Your output must comply strictly with these criteria:
@@ -609,16 +670,16 @@ Ensure absolute precision. Keep the JSON perfect.`;
         prompt,
         systemPrompt: systemInstruction,
         temperature: 0.8,
-        responseMimeType: "application/json",
+        responseMimeType: 'application/json',
         responseSchema: getSchemaForFormat(format),
       });
 
-      const rawJsonText = cleanJsonString(genResult || "{}");
+      const rawJsonText = cleanJsonString(genResult || '{}');
       try {
         const parsed = JSON.parse(rawJsonText);
         return parsed.items || [];
       } catch (error) {
-        logger.error("Failed to parse generate-more response:", error);
+        logger.error('Failed to parse generate-more response:', error);
         return [];
       }
     };
@@ -626,52 +687,52 @@ Ensure absolute precision. Keep the JSON perfect.`;
     const rawItems = await createTimeoutPromise(
       withRetry(generateMore, 2, 500),
       60000,
-      "Additional items generation timed out"
+      'Additional items generation timed out'
     );
 
     const mapItem = createItemMapper(format);
     let idCounter = 1;
     const finalItems = rawItems.map((item: any) => {
       const id = `item-synthetic-${Date.now()}-${idCounter++}`;
-      return mapItem(item, id, "Extended Concepts");
+      return mapItem(item, id, 'Extended Concepts');
     });
 
     res.json({ items: finalItems });
   } catch (error: any) {
-    logger.error("Synthesize more breakdown:", error);
-    res.status(500).json({ error: error.message || "An unresolved error occurred during expansion generation." });
+    logger.error('Synthesize more breakdown:', error);
+    res.status(500).json({ error: error.message || 'An unresolved error occurred during expansion generation.' });
   }
 });
 
 /**
  * Endpoint to upload dataset to Hugging Face Hub
  */
-app.post("/api/upload-huggingface", async (req: Request, res: Response) => {
+app.post('/api/upload-huggingface', async (req: Request, res: Response) => {
   try {
     const { items, token, repoName, format, topic } = req.body;
 
     if (!token || !repoName) {
-      res.status(400).json({ error: "Missing required fields: token, repoName" });
+      res.status(400).json({ error: 'Missing required fields: token, repoName' });
       return;
     }
     if (!items || !Array.isArray(items) || items.length === 0) {
-      res.status(400).json({ error: "No dataset items provided" });
+      res.status(400).json({ error: 'No dataset items provided' });
       return;
     }
 
     const hfHeaders: Record<string, string> = {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
     };
 
     // Step 1: Create the dataset repo if it doesn't exist
     logger.info(`Creating/verifying Hugging Face dataset repo: ${repoName}`);
-    const createRes = await fetch("https://huggingface.co/api/repos/create", {
-      method: "POST",
+    const createRes = await fetch('https://huggingface.co/api/repos/create', {
+      method: 'POST',
       headers: hfHeaders,
       body: JSON.stringify({
         name: repoName,
-        type: "dataset",
+        type: 'dataset',
         organization: null,
         private: false,
       }),
@@ -685,17 +746,17 @@ app.post("/api/upload-huggingface", async (req: Request, res: Response) => {
     }
 
     // Step 2: Prepare dataset files
-    const sanitizedName = repoName.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const sanitizedName = repoName.replace(/[^a-zA-Z0-9_-]/g, '_');
     const fileContent = (() => {
       switch (format) {
-        case "alpaca":
-          return items.map((itm: any) => JSON.stringify(itm.alpaca)).join("\n");
-        case "sharegpt":
-          return items.map((itm: any) => JSON.stringify(itm.sharegpt)).join("\n");
-        case "qa":
-          return items.map((itm: any) => JSON.stringify(itm.qa)).join("\n");
+        case 'alpaca':
+          return items.map((itm: any) => JSON.stringify(itm.alpaca)).join('\n');
+        case 'sharegpt':
+          return items.map((itm: any) => JSON.stringify(itm.sharegpt)).join('\n');
+        case 'qa':
+          return items.map((itm: any) => JSON.stringify(itm.qa)).join('\n');
         default:
-          return items.map((itm: any) => JSON.stringify(itm.raw)).join("\n");
+          return items.map((itm: any) => JSON.stringify(itm.raw)).join('\n');
       }
     })();
 
@@ -703,12 +764,12 @@ app.post("/api/upload-huggingface", async (req: Request, res: Response) => {
     logger.info(`Uploading dataset to ${repoName}...`);
     const uploadUrl = `https://huggingface.co/api/datasets/${encodeURIComponent(repoName)}/upload`;
     const uploadRes = await fetch(uploadUrl, {
-      method: "POST",
+      method: 'POST',
       headers: hfHeaders,
       body: JSON.stringify({
         path: `data/${sanitizedName}_${format}.jsonl`,
         content: fileContent,
-        operations: "overwrite",
+        operations: 'overwrite',
       }),
     });
 
@@ -719,10 +780,10 @@ app.post("/api/upload-huggingface", async (req: Request, res: Response) => {
       // Fallback: try direct file upload via raw endpoint
       const fallbackUrl = `https://huggingface.co/datasets/${encodeURIComponent(repoName)}/raw/main/data/${sanitizedName}_${format}.jsonl`;
       const fallbackRes = await fetch(fallbackUrl, {
-        method: "PUT",
+        method: 'PUT',
         headers: {
           ...hfHeaders,
-          "Content-Type": "text/plain",
+          'Content-Type': 'text/plain',
         },
         body: fileContent,
       });
@@ -756,24 +817,24 @@ configs:
 
 Synthetic LLM training dataset generated by **TrainEngine.ai**.
 
-- **Topic:** ${topic || "General"}
+- **Topic:** ${topic || 'General'}
 - **Format:** ${format}
 - **Size:** ${items.length} examples
 - **Generated:** ${new Date().toISOString()}
 `;
 
     const readmeRes = await fetch(uploadUrl, {
-      method: "POST",
+      method: 'POST',
       headers: hfHeaders,
       body: JSON.stringify({
-        path: "README.md",
+        path: 'README.md',
         content: readmeContent,
-        operations: "overwrite",
+        operations: 'overwrite',
       }),
     });
 
     if (!readmeRes.ok) {
-      logger.warn("Failed to upload README.md, dataset file was uploaded");
+      logger.warn('Failed to upload README.md, dataset file was uploaded');
     }
 
     const encodedRepo = encodeURIComponent(repoName);
@@ -785,19 +846,19 @@ Synthetic LLM training dataset generated by **TrainEngine.ai**.
       itemCount: items.length,
     });
   } catch (error: any) {
-    logger.error("HF upload failed:", error);
-    res.status(500).json({ error: error.message || "Failed to upload to Hugging Face" });
+    logger.error('HF upload failed:', error);
+    res.status(500).json({ error: error.message || 'Failed to upload to Hugging Face' });
   }
 });
 
 /**
  * Self-Play Improvement: iteratively judge items, refine flawed ones, repeat
  */
-app.post("/api/self-play", async (req: Request, res: Response) => {
+app.post('/api/self-play', async (req: Request, res: Response) => {
   try {
     let { items, cycles = 2, modelConfig } = req.body;
     if (!items || !Array.isArray(items) || items.length === 0) {
-      res.status(400).json({ error: "No items provided" });
+      res.status(400).json({ error: 'No items provided' });
       return;
     }
 
@@ -817,9 +878,9 @@ Output: { "critiques": [ { "index": number, "isValid": boolean, "critique": "fee
         const judgeResult = await scoringProvider.generate({
           prompt: `${judgePrompt}\n\nItems:\n${JSON.stringify(improvedItems)}`,
           temperature: 0.2,
-          responseMimeType: "application/json",
+          responseMimeType: 'application/json',
         });
-        const judgeData = JSON.parse(cleanJsonString(judgeResult || "{}"));
+        const judgeData = JSON.parse(cleanJsonString(judgeResult || '{}'));
         critiques = judgeData.critiques || [];
       } catch {
         break;
@@ -828,20 +889,24 @@ Output: { "critiques": [ { "index": number, "isValid": boolean, "critique": "fee
       const failedIndices = critiques.filter(c => !c.isValid).map(c => c.index);
       if (failedIndices.length === 0) break;
 
-      const failedItems = failedIndices.map(i => ({ index: i, item: improvedItems[i], critique: critiques.find(c => c.index === i)?.critique }));
+      const failedItems = failedIndices.map(i => ({
+        index: i,
+        item: improvedItems[i],
+        critique: critiques.find(c => c.index === i)?.critique,
+      }));
 
       const refinerResult = await genProvider.generate({
         prompt: `Rewrite these training items to fix the identified flaws. Preserve original format and intent.
 Output: { "refinedItems": [ { "index": number, "item": { ... } } ] }
 Input:\n${JSON.stringify(failedItems)}`,
         temperature: 0.3,
-        responseMimeType: "application/json",
+        responseMimeType: 'application/json',
       });
 
       try {
-        const refined = JSON.parse(cleanJsonString(refinerResult || "{}"));
+        const refined = JSON.parse(cleanJsonString(refinerResult || '{}'));
         (refined.refinedItems || []).forEach((entry: any) => {
-          if (typeof entry.index === "number" && improvedItems[entry.index]) {
+          if (typeof entry.index === 'number' && improvedItems[entry.index]) {
             improvedItems[entry.index] = entry.item;
           }
         });
@@ -850,7 +915,7 @@ Input:\n${JSON.stringify(failedItems)}`,
 
     res.json({ items: improvedItems });
   } catch (error: any) {
-    logger.error("Self-play error:", error);
+    logger.error('Self-play error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -858,11 +923,11 @@ Input:\n${JSON.stringify(failedItems)}`,
 /**
  * Export DPO preference pairs: creates chosen/rejected pairs from items
  */
-app.post("/api/export-dpo", async (req: Request, res: Response) => {
+app.post('/api/export-dpo', async (req: Request, res: Response) => {
   try {
     const { items, modelConfig } = req.body;
     if (!items || !Array.isArray(items) || items.length === 0) {
-      res.status(400).json({ error: "No items provided" });
+      res.status(400).json({ error: 'No items provided' });
       return;
     }
 
@@ -872,19 +937,24 @@ app.post("/api/export-dpo", async (req: Request, res: Response) => {
     const pairs: { instruction: string; chosen: string; rejected: string; metadata: any }[] = [];
 
     for (const item of items) {
-      const instruction = item.alpaca?.instruction || item.qa?.question || item.sharegpt?.messages?.map((m: any) => m.content).join("\n") || item.raw?.title || "";
+      const instruction =
+        item.alpaca?.instruction ||
+        item.qa?.question ||
+        item.sharegpt?.messages?.map((m: any) => m.content).join('\n') ||
+        item.raw?.title ||
+        '';
 
       if (item.metadata?.is_negative) {
         // Already a negative example: use correction as chosen
         pairs.push({
           instruction,
-          chosen: item.metadata.correction || item.alpaca?.output || item.qa?.answer || "",
-          rejected: item.alpaca?.output || item.qa?.answer || item.raw?.text || "",
-          metadata: { source: "is_negative", original_id: item.id, topic: item.topic },
+          chosen: item.metadata.correction || item.alpaca?.output || item.qa?.answer || '',
+          rejected: item.alpaca?.output || item.qa?.answer || item.raw?.text || '',
+          metadata: { source: 'is_negative', original_id: item.id, topic: item.topic },
         });
       } else {
         // Generate a deliberately flawed version for the rejected side
-        const correctAnswer = item.alpaca?.output || item.qa?.answer || "";
+        const correctAnswer = item.alpaca?.output || item.qa?.answer || '';
         if (!correctAnswer) continue;
 
         try {
@@ -900,7 +970,7 @@ Output just the flawed answer, no explanation.`,
             instruction,
             chosen: correctAnswer,
             rejected: flawed || correctAnswer,
-            metadata: { source: "generated_flawed", original_id: item.id, topic: item.topic },
+            metadata: { source: 'generated_flawed', original_id: item.id, topic: item.topic },
           });
         } catch {
           // Skip items where flawed generation fails — identical chosen/rejected
@@ -912,7 +982,7 @@ Output just the flawed answer, no explanation.`,
 
     res.json({ pairs, count: pairs.length });
   } catch (error: any) {
-    logger.error("DPO export error:", error);
+    logger.error('DPO export error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -920,11 +990,11 @@ Output just the flawed answer, no explanation.`,
 /**
  * Evolve Instructions (WizardLM-style): generate harder variants of existing items
  */
-app.post("/api/evolve", async (req: Request, res: Response) => {
+app.post('/api/evolve', async (req: Request, res: Response) => {
   try {
     const { items, count = 2, modelConfig } = req.body;
     if (!items || !Array.isArray(items) || items.length === 0) {
-      res.status(400).json({ error: "No items provided" });
+      res.status(400).json({ error: 'No items provided' });
       return;
     }
 
@@ -933,17 +1003,17 @@ app.post("/api/evolve", async (req: Request, res: Response) => {
 
     const evolutionModes = [
       "Add a specific constraint (e.g., 'answer in exactly 3 sentences', 'use only first-principles reasoning')",
-      "Increase complexity to expert level with multi-step reasoning",
-      "Cross-domain: connect the topic to an unrelated second domain",
-      "Add an adversarial twist: introduce a subtle false premise the model must catch",
-      "Require the model to identify and resolve an intentional ambiguity",
+      'Increase complexity to expert level with multi-step reasoning',
+      'Cross-domain: connect the topic to an unrelated second domain',
+      'Add an adversarial twist: introduce a subtle false premise the model must catch',
+      'Require the model to identify and resolve an intentional ambiguity',
     ];
 
     const evolvedItems: any[] = [];
 
     for (let i = 0; i < Math.min(count, 10); i++) {
       const baseItem = items[i % items.length];
-      const instruction = baseItem.alpaca?.instruction || baseItem.qa?.question || "";
+      const instruction = baseItem.alpaca?.instruction || baseItem.qa?.question || '';
       const evolutionMode = evolutionModes[i % evolutionModes.length];
 
       try {
@@ -955,28 +1025,32 @@ Evolution mode: ${evolutionMode}
 Generate exactly 1 evolved instruction that maintains the original intent but is significantly harder.
 Output JSON: { "evolved_instruction": "...", "evolution_mode": "...", "complexity": "expert", "reasoning_depth": "multi-step" }`,
           temperature: 0.7,
-          responseMimeType: "application/json",
+          responseMimeType: 'application/json',
         });
 
-        const parsed = JSON.parse(cleanJsonString(result || "{}"));
+        const parsed = JSON.parse(cleanJsonString(result || '{}'));
         if (parsed.evolved_instruction) {
           evolvedItems.push({
             id: `evolved-${Date.now()}-${i}`,
             format: baseItem.format,
             topic: baseItem.topic,
-            alpaca: baseItem.alpaca ? {
-              instruction: parsed.evolved_instruction,
-              input: baseItem.alpaca.input,
-              output: "",
-            } : undefined,
-            qa: baseItem.qa ? {
-              question: parsed.evolved_instruction,
-              answer: "",
-            } : undefined,
+            alpaca: baseItem.alpaca
+              ? {
+                  instruction: parsed.evolved_instruction,
+                  input: baseItem.alpaca.input,
+                  output: '',
+                }
+              : undefined,
+            qa: baseItem.qa
+              ? {
+                  question: parsed.evolved_instruction,
+                  answer: '',
+                }
+              : undefined,
             metadata: {
-              reasoning: "",
-              intent: "evolved",
-              complexity: "advanced",
+              reasoning: '',
+              intent: 'evolved',
+              complexity: 'advanced',
               is_negative: false,
               evolution_mode: parsed.evolution_mode || evolutionMode,
             },
@@ -987,7 +1061,7 @@ Output JSON: { "evolved_instruction": "...", "evolution_mode": "...", "complexit
 
     res.json({ items: evolvedItems, count: evolvedItems.length });
   } catch (error: any) {
-    logger.error("Evolve error:", error);
+    logger.error('Evolve error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -995,11 +1069,11 @@ Output JSON: { "evolved_instruction": "...", "evolution_mode": "...", "complexit
 /**
  * Generate Multi-Turn Conversation Trees
  */
-app.post("/api/generate-tree", async (req: Request, res: Response) => {
+app.post('/api/generate-tree', async (req: Request, res: Response) => {
   try {
     const { topic, depth = 3, branches = 2, modelConfig } = req.body;
-    if (!topic || topic.trim() === "") {
-      res.status(400).json({ error: "Missing topic" });
+    if (!topic || topic.trim() === '') {
+      res.status(400).json({ error: 'Missing topic' });
       return;
     }
 
@@ -1017,19 +1091,25 @@ app.post("/api/generate-tree", async (req: Request, res: Response) => {
 
     interface TreeNode {
       turn: number;
-      role: "user" | "assistant";
+      role: 'user' | 'assistant';
       content: string;
       branches: TreeNode[];
     }
 
     let nodeCount = 0;
 
-    async function buildBranch(topic: string, currentDepth: number, maxDepth: number, maxBranches: number, history: { role: string; content: string }[]): Promise<TreeNode | null> {
+    async function buildBranch(
+      topic: string,
+      currentDepth: number,
+      maxDepth: number,
+      maxBranches: number,
+      history: { role: string; content: string }[]
+    ): Promise<TreeNode | null> {
       if (nodeCount >= maxTotalNodes) return null;
       nodeCount++;
 
-      const role = currentDepth % 2 === 0 ? "user" : "assistant";
-      const historyStr = history.map(h => `${h.role}: ${h.content}`).join("\n");
+      const role = currentDepth % 2 === 0 ? 'user' : 'assistant';
+      const historyStr = history.map(h => `${h.role}: ${h.content}`).join('\n');
 
       const result = await genProvider.generate({
         prompt: `Continue this conversation about "${topic}":
@@ -1038,27 +1118,27 @@ ${historyStr}
 Generate the next ${role} turn. Be natural and educational.
 Output JSON: { "content": "..." }`,
         temperature: 0.7,
-        responseMimeType: "application/json",
+        responseMimeType: 'application/json',
       });
 
-      let content = "";
+      let content = '';
       try {
-        const parsed = JSON.parse(cleanJsonString(result || "{}"));
-        content = parsed.content || "";
+        const parsed = JSON.parse(cleanJsonString(result || '{}'));
+        content = parsed.content || '';
       } catch {
         content = `Let me explain more about ${topic}...`;
       }
 
       const newNode: TreeNode = {
         turn: currentDepth,
-        role: role as "user" | "assistant",
+        role: role as 'user' | 'assistant',
         content,
         branches: [],
       };
 
       if (currentDepth < maxDepth) {
         const newHistory = [...history, { role, content }];
-        const numBranches = role === "user" ? 1 : maxBranches;
+        const numBranches = role === 'user' ? 1 : maxBranches;
 
         for (let b = 0; b < numBranches; b++) {
           const child = await buildBranch(topic, currentDepth + 1, maxDepth, maxBranches, newHistory);
@@ -1071,12 +1151,12 @@ Output JSON: { "content": "..." }`,
 
     const root: TreeNode = {
       turn: 0,
-      role: "user",
+      role: 'user',
       content: `Tell me about ${topic}`,
       branches: [],
     };
 
-    const firstHistory = [{ role: "user", content: root.content }];
+    const firstHistory = [{ role: 'user', content: root.content }];
 
     for (let b = 0; b < safeBranches; b++) {
       const child = await buildBranch(topic, 1, safeDepth, safeBranches, firstHistory);
@@ -1098,29 +1178,29 @@ Output JSON: { "content": "..." }`,
       totalTurns: flattenTree(root).length,
     });
   } catch (error: any) {
-    logger.error("Tree generation error:", error);
+    logger.error('Tree generation error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // Vite middleware and asset serving
 async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    const { createServer: createViteServer } = await import("vite");
+  if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: "spa",
+      appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
+    const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
-  app.listen(PORT, "127.0.0.1", () => {
+  app.listen(PORT, '127.0.0.1', () => {
     logger.info(`Server running on http://127.0.0.1:${PORT}`);
     console.log(`Server running on http://127.0.0.1:${PORT}`);
   });
