@@ -21,15 +21,15 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+
 # Install production dependencies only
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy built assets from builder
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/electron ./electron
-COPY --from=builder /app/assets ./assets
-COPY main.js ./
 COPY openapi.yaml ./
 
 # Create non-root user

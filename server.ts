@@ -15,8 +15,16 @@ dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+// Local-first default: bind loopback only. Deployments (e.g. Docker) set
+// HOST=0.0.0.0 to accept external connections.
+const HOST = process.env.HOST || '127.0.0.1';
 
 app.use(express.json({ limit: '50mb' }));
+
+// Liveness probe for container orchestrators and the Docker HEALTHCHECK
+app.get('/health', (_req: Request, res: Response) => {
+  res.json({ status: 'ok', uptime: process.uptime() });
+});
 
 // Request logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -1200,9 +1208,9 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '127.0.0.1', () => {
-    logger.info(`Server running on http://127.0.0.1:${PORT}`);
-    console.log(`Server running on http://127.0.0.1:${PORT}`);
+  app.listen(PORT, HOST, () => {
+    logger.info(`Server running on http://${HOST}:${PORT}`);
+    console.log(`Server running on http://${HOST}:${PORT}`);
   });
 }
 
