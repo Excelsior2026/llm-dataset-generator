@@ -3,6 +3,7 @@
 ## ✅ Completed (Items 1-20)
 
 ### Documentation & Configuration
+
 1. ✅ **OpenAPI/Swagger Documentation** - `openapi.yaml` with all 8 endpoints documented
 2. ✅ **Type Deduplication** - Consolidated `ProviderType`, `ModelFunction` to `src/types.ts`
 3. ✅ **npm scripts** - Added `typecheck`, `lint`, `format`, `lint:fix`, `format:check`
@@ -12,6 +13,7 @@
 7. ✅ **.dockerignore** - Proper exclusions
 
 ### Utility Modules
+
 8. ✅ **Circuit Breaker Pattern** - `src/utils/advanced.ts` with `CircuitBreaker` and `CircuitBreakerRegistry`
 9. ✅ **Rate Limiting** - `RateLimiter` class in `src/utils/advanced.ts`
 10. ✅ **Enhanced Logger** - `src/utils/logger.ts` with correlation IDs, JSON output, log levels
@@ -23,11 +25,13 @@
 16. ✅ **Request Context** - `RequestContextManager` for correlation IDs
 
 ### Provider System
+
 17. ✅ **Plugin Architecture** - `src/providers/PluginRegistry.ts` for dynamic provider loading
 18. ✅ **API Key Rotation** - `getNextApiKey()` function for round-robin key selection
 19. ✅ **Audit Logging** - `logSecretAccess()` function for secret access tracking
 
 ### Testing & CI
+
 20. ✅ **GitHub Actions CI** - `.github/workflows/ci.yml` with typecheck, lint, test, build
 
 ---
@@ -35,8 +39,9 @@
 ## 🔄 In Progress (Items 21-27)
 
 ### Server Integration
+
 21. ⏳ **Circuit Breaker Integration** - Utility ready, needs server.ts integration
-22. ⏳ **Rate Limiting Middleware** - Utility ready, needs server.ts integration  
+22. ⏳ **Rate Limiting Middleware** - Utility ready, needs server.ts integration
 23. ⏳ **Response Caching Integration** - Utility ready, needs server.ts integration
 24. ⏳ **Health Check Endpoint** - Implementation ready, needs server.ts integration
 25. ⏳ **Metrics Endpoint** - Implementation ready, needs server.ts integration
@@ -47,6 +52,7 @@
 30. ⏳ **Request Size Limits** - `MAX_BATCH_SIZE` env var ready, needs integration
 
 ### Deferred
+
 - ⏸️ **Worker Queue (BullMQ)** - Requires Redis dependency, deferred to future release
 
 ---
@@ -67,6 +73,7 @@ The foundation utilities are complete. The next phase is integrating them into `
 ## Files Created/Modified
 
 ### New Files (14)
+
 - `openapi.yaml` - OpenAPI 3.0 specification
 - `src/utils/advanced.ts` - Circuit breaker, rate limiter, metrics
 - `src/utils/logger.ts` - Enhanced logger with correlation IDs
@@ -81,6 +88,7 @@ The foundation utilities are complete. The next phase is integrating them into `
 - `.github/workflows/ci.yml` - CI pipeline
 
 ### Modified Files (4)
+
 - `package.json` - New scripts, devDependencies
 - `src/types.ts` - Added `ProviderConfig` interface
 - `src/providers/types.ts` - Re-exports from types.ts (deduplication)
@@ -91,32 +99,37 @@ The foundation utilities are complete. The next phase is integrating them into `
 ## Usage Examples
 
 ### Enable JSON Logging
+
 ```bash
 export LOG_LEVEL=info
 export LOG_FORMAT=json
 ```
 
 ### Configure Rate Limiting
+
 ```typescript
-const rateLimiter = new RateLimiter({ 
-  windowMs: 60000,  // 1 minute
-  maxRequests: 100  // per IP
+const rateLimiter = new RateLimiter({
+  windowMs: 60000, // 1 minute
+  maxRequests: 100, // per IP
 });
 ```
 
 ### Use Circuit Breaker
+
 ```typescript
 const breaker = circuitBreakers.get('gemini');
 const result = await breaker.execute(() => provider.generate(options));
 ```
 
 ### Enable Caching
+
 ```typescript
 const cache = new ResponseCache({ ttlMs: 5 * 60 * 1000 });
 const cached = cache.get(key);
 ```
 
 ### Validate Dataset
+
 ```typescript
 const result = validateDataset(items, 'alpaca');
 if (!result.valid) {
@@ -128,10 +141,10 @@ if (!result.valid) {
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MAX_BATCH_SIZE` | 30 | Maximum items per generation |
-| `JUDGE_THRESHOLD` | 0.7 | Confidence threshold for judge/refine |
-| `LOG_LEVEL` | info | Logging level (debug/info/warn/error) |
-| `LOG_FORMAT` | text | Output format (text/json) |
-| `GEMINI_API_KEY` | - | Comma-separated list for rotation |
+| Variable          | Default | Description                           |
+| ----------------- | ------- | ------------------------------------- |
+| `MAX_BATCH_SIZE`  | 30      | Maximum items per generation          |
+| `JUDGE_THRESHOLD` | 0.7     | Confidence threshold for judge/refine |
+| `LOG_LEVEL`       | info    | Logging level (debug/info/warn/error) |
+| `LOG_FORMAT`      | text    | Output format (text/json)             |
+| `GEMINI_API_KEY`  | -       | Comma-separated list for rotation     |

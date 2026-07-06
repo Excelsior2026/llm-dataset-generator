@@ -4,8 +4,8 @@
  */
 
 export type DatasetFormat = 'alpaca' | 'sharegpt' | 'qa' | 'raw';
-export type ProviderType = "ollama" | "llamacpp" | "gemini";
-export type ModelFunction = "research" | "generation" | "scoring";
+export type ProviderType = 'ollama' | 'llamacpp' | 'gemini';
+export type ModelFunction = 'research' | 'generation' | 'scoring';
 
 export interface ModelFunctionConfig {
   provider: ProviderType;
@@ -90,12 +90,12 @@ export interface ResearchSource {
 export interface SubtopicNode {
   id: string;
   label: string;
-  level: number; 
+  level: number;
 }
 
 export interface DependencyEdge {
-  from: string; 
-  to: string;   
+  from: string;
+  to: string;
 }
 
 export interface DatasetGenerationConfig {
@@ -154,7 +154,7 @@ export interface DPOPair {
 
 export interface ConversationTreeNode {
   turn: number;
-  role: "user" | "assistant";
+  role: 'user' | 'assistant';
   content: string;
   branches: ConversationTreeNode[];
   level?: number;

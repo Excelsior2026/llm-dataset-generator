@@ -4,8 +4,8 @@
  */
 
 export * from './logger';
-export * from './advanced';
-export * from './cache';
+// './advanced' and './cache' use Node built-ins (events, crypto); import them
+// directly in server-side code — re-exporting here breaks the browser bundle.
 export * from './validation';
 
 export interface ItemMapping {
@@ -40,74 +40,74 @@ export interface ItemMapping {
   };
 }
 
-export function mapItemToFormat(item: any, format: string, id: string, topic: string): ItemMapping {
-  const itemTopic = item.topic || "General Concepts";
+export function mapItemToFormat(item: any, format: string, id: string, _topic: string): ItemMapping {
+  const itemTopic = item.topic || 'General Concepts';
   const metadata = item.metadata || {
-    reasoning: "No reasoning provided",
-    intent: "General",
-    complexity: "intermediate",
-    is_negative: false
+    reasoning: 'No reasoning provided',
+    intent: 'General',
+    complexity: 'intermediate',
+    is_negative: false,
   };
-  
+
   switch (format) {
-    case "alpaca":
+    case 'alpaca':
       return {
         id,
-        format: "alpaca",
+        format: 'alpaca',
         topic: itemTopic,
         metadata,
         alpaca: {
-          instruction: item.instruction || "No instruction provided",
-          input: item.input || "",
-          output: item.output || ""
-        }
+          instruction: item.instruction || 'No instruction provided',
+          input: item.input || '',
+          output: item.output || '',
+        },
       };
-    case "sharegpt":
+    case 'sharegpt':
       return {
         id,
-        format: "sharegpt",
+        format: 'sharegpt',
         topic: itemTopic,
         metadata,
         sharegpt: {
           messages: item.messages || [
-            { role: "system", content: "You are an expert assistant." },
-            { role: "user", content: "Tell me about this topic." },
-            { role: "assistant", content: "Here is the key info." }
-          ]
-        }
+            { role: 'system', content: 'You are an expert assistant.' },
+            { role: 'user', content: 'Tell me about this topic.' },
+            { role: 'assistant', content: 'Here is the key info.' },
+          ],
+        },
       };
-    case "qa":
+    case 'qa':
       return {
         id,
-        format: "qa",
+        format: 'qa',
         topic: itemTopic,
         metadata,
         qa: {
-          question: item.question || "What is this topic?",
-          answer: item.answer || "Detail answer of this topic"
-        }
+          question: item.question || 'What is this topic?',
+          answer: item.answer || 'Detail answer of this topic',
+        },
       };
-    case "raw":
+    case 'raw':
       return {
         id,
-        format: "raw",
+        format: 'raw',
         topic: itemTopic,
         metadata,
         raw: {
-          title: item.title || "Section Overview",
-          text: item.text || "Detailed text contents"
-        }
+          title: item.title || 'Section Overview',
+          text: item.text || 'Detailed text contents',
+        },
       };
     default:
       return {
         id,
-        format: "raw",
+        format: 'raw',
         topic: itemTopic,
         metadata,
         raw: {
-          title: "Unknown Format",
-          text: "Data in unknown format"
-        }
+          title: 'Unknown Format',
+          text: 'Data in unknown format',
+        },
       };
   }
 }
@@ -195,7 +195,7 @@ export async function withRetry<T>(
   delay: number = 1000,
   backoffFactor: number = 2
 ): Promise<T> {
-  let lastError: Error;
+  let lastError: Error | undefined;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -214,7 +214,7 @@ export async function withRetry<T>(
     }
   }
 
-  throw lastError;
+  throw lastError ?? new Error('Retry failed: no attempts were made');
 }
 
 export function createTimeoutPromise<T>(
@@ -226,7 +226,7 @@ export function createTimeoutPromise<T>(
     promise,
     new Promise<never>((_, reject) => {
       setTimeout(() => reject(new ApiError(timeoutError, 504, true)), timeoutMs);
-    })
+    }),
   ]);
 }
 
@@ -262,7 +262,7 @@ export class Logger {
       timestamp: Date.now(),
       level,
       message,
-      error
+      error,
     });
     if (this.logs.length > this.maxLogs) {
       this.logs.splice(0, this.logs.length - this.maxLogs);
@@ -320,115 +320,127 @@ export class Memoizer<T, R> {
 
 export function getSchemaForFormat(format: string): Record<string, any> {
   const schema = {
-    type: "OBJECT",
+    type: 'OBJECT',
     properties: {
       items: {
-        type: "ARRAY",
+        type: 'ARRAY',
         items: {
-          type: "OBJECT",
+          type: 'OBJECT',
           properties: {
             metadata: {
-              type: "OBJECT",
+              type: 'OBJECT',
               properties: {
-                reasoning: { type: "STRING", description: "Detailed step-by-step chain of thought explaining how the answer is derived." },
-                intent: { type: "STRING", description: "The cognitive goal (e.g., 'Socratic', 'Adversarial', 'First-Principles', 'Deductive')." },
-                complexity: { type: "STRING", enum: ["novice", "intermediate", "expert"] },
-                is_negative: { type: "BOOLEAN", description: "Whether this example intentionally contains a logical flaw for contrastive learning." },
-                correction: { type: "STRING", description: "If is_negative is true, the corrected reasoning and final answer." },
+                reasoning: {
+                  type: 'STRING',
+                  description: 'Detailed step-by-step chain of thought explaining how the answer is derived.',
+                },
+                intent: {
+                  type: 'STRING',
+                  description: "The cognitive goal (e.g., 'Socratic', 'Adversarial', 'First-Principles', 'Deductive').",
+                },
+                complexity: { type: 'STRING', enum: ['novice', 'intermediate', 'expert'] },
+                is_negative: {
+                  type: 'BOOLEAN',
+                  description: 'Whether this example intentionally contains a logical flaw for contrastive learning.',
+                },
+                correction: {
+                  type: 'STRING',
+                  description: 'If is_negative is true, the corrected reasoning and final answer.',
+                },
                 trajectory: {
-                  type: "ARRAY",
+                  type: 'ARRAY',
                   items: {
-                    type: "OBJECT",
+                    type: 'OBJECT',
                     properties: {
-                      step: { type: "NUMBER" },
-                      phase: { type: "STRING", enum: ["initial_attempt", "self_critique", "final_correction"] },
-                      content: { type: "STRING" },
-                      thought_process: { type: "STRING" }
+                      step: { type: 'NUMBER' },
+                      phase: { type: 'STRING', enum: ['initial_attempt', 'self_critique', 'final_correction'] },
+                      content: { type: 'STRING' },
+                      thought_process: { type: 'STRING' },
                     },
-                    required: ["step", "phase", "content"]
-                  }
+                    required: ['step', 'phase', 'content'],
+                  },
                 },
                 persona: {
-                  type: "OBJECT",
+                  type: 'OBJECT',
                   properties: {
-                    role: { type: "STRING" },
-                    mental_state: { type: "STRING" },
-                    constraint: { type: "STRING" }
-                  }
+                    role: { type: 'STRING' },
+                    mental_state: { type: 'STRING' },
+                    constraint: { type: 'STRING' },
+                  },
                 },
                 interdisciplinary_link: {
-                  type: "OBJECT",
+                  type: 'OBJECT',
                   properties: {
-                    domain_a: { type: "STRING" },
-                    domain_b: { type: "STRING" },
-                    synthesis_bridge: { type: "STRING" }
-                  }
-                }
+                    domain_a: { type: 'STRING' },
+                    domain_b: { type: 'STRING' },
+                    synthesis_bridge: { type: 'STRING' },
+                  },
+                },
               },
-              required: ["reasoning", "intent", "complexity", "is_negative"]
-            }
+              required: ['reasoning', 'intent', 'complexity', 'is_negative'],
+            },
           },
-          required: ["metadata"]
-        }
-      }
+          required: ['metadata'],
+        },
+      },
     },
-    required: ["items"]
+    required: ['items'],
   };
 
   switch (format) {
-    case "alpaca":
+    case 'alpaca':
       (schema.properties.items.items.properties as any).alpaca = {
-        type: "OBJECT",
+        type: 'OBJECT',
         properties: {
-          instruction: { type: "STRING" },
-          input: { type: "STRING" },
-          output: { type: "STRING" }
+          instruction: { type: 'STRING' },
+          input: { type: 'STRING' },
+          output: { type: 'STRING' },
         },
-        required: ["instruction", "input", "output"]
+        required: ['instruction', 'input', 'output'],
       };
-      schema.properties.items.items.required.push("alpaca");
+      schema.properties.items.items.required.push('alpaca');
       break;
-    case "sharegpt":
+    case 'sharegpt':
       (schema.properties.items.items.properties as any).sharegpt = {
-        type: "OBJECT",
+        type: 'OBJECT',
         properties: {
           messages: {
-            type: "ARRAY",
+            type: 'ARRAY',
             items: {
-              type: "OBJECT",
+              type: 'OBJECT',
               properties: {
-                role: { type: "STRING", enum: ["system", "user", "assistant"] },
-                content: { type: "STRING" }
+                role: { type: 'STRING', enum: ['system', 'user', 'assistant'] },
+                content: { type: 'STRING' },
               },
-              required: ["role", "content"]
-            }
-          }
+              required: ['role', 'content'],
+            },
+          },
         },
-        required: ["messages"]
+        required: ['messages'],
       };
-      schema.properties.items.items.required.push("sharegpt");
+      schema.properties.items.items.required.push('sharegpt');
       break;
-    case "qa":
+    case 'qa':
       (schema.properties.items.items.properties as any).qa = {
-        type: "OBJECT",
+        type: 'OBJECT',
         properties: {
-          question: { type: "STRING" },
-          answer: { type: "STRING" }
+          question: { type: 'STRING' },
+          answer: { type: 'STRING' },
         },
-        required: ["question", "answer"]
+        required: ['question', 'answer'],
       };
-      schema.properties.items.items.required.push("qa");
+      schema.properties.items.items.required.push('qa');
       break;
-    case "raw":
+    case 'raw':
       (schema.properties.items.items.properties as any).raw = {
-        type: "OBJECT",
+        type: 'OBJECT',
         properties: {
-          title: { type: "STRING" },
-          text: { type: "STRING" }
+          title: { type: 'STRING' },
+          text: { type: 'STRING' },
         },
-        required: ["title", "text"]
+        required: ['title', 'text'],
       };
-      schema.properties.items.items.required.push("raw");
+      schema.properties.items.items.required.push('raw');
       break;
     default:
       break;
@@ -439,17 +451,15 @@ export function getSchemaForFormat(format: string): Record<string, any> {
 
 export function toJsonSchema(schema: any): any {
   if (Array.isArray(schema)) return schema.map(toJsonSchema);
-  if (schema === null || typeof schema !== "object") return schema;
+  if (schema === null || typeof schema !== 'object') return schema;
 
   const out: any = {};
   for (const [key, value] of Object.entries(schema)) {
-    if (key === "type" && typeof value === "string") {
+    if (key === 'type' && typeof value === 'string') {
       out.type = value.toLowerCase();
-    } else if (key === "properties" && value && typeof value === "object") {
-      out.properties = Object.fromEntries(
-        Object.entries(value).map(([k, v]) => [k, toJsonSchema(v)])
-      );
-    } else if (key === "items") {
+    } else if (key === 'properties' && value && typeof value === 'object') {
+      out.properties = Object.fromEntries(Object.entries(value).map(([k, v]) => [k, toJsonSchema(v)]));
+    } else if (key === 'items') {
       out.items = toJsonSchema(value);
     } else {
       out[key] = value;
@@ -462,17 +472,17 @@ export function computeQualityScore(item: any): number {
   let score = 50;
 
   try {
-    let text = "";
-    let reasoning = item.metadata?.reasoning || "";
+    let text = '';
+    let reasoning = item.metadata?.reasoning || '';
 
     if (item.alpaca) {
-      text = [item.alpaca.instruction, item.alpaca.input, item.alpaca.output].filter(Boolean).join(" ");
+      text = [item.alpaca.instruction, item.alpaca.input, item.alpaca.output].filter(Boolean).join(' ');
     } else if (item.sharegpt?.messages) {
-      text = item.sharegpt.messages.map((m: any) => m.content).join(" ");
+      text = item.sharegpt.messages.map((m: any) => m.content).join(' ');
     } else if (item.qa) {
-      text = [item.qa.question, item.qa.answer].filter(Boolean).join(" ");
+      text = [item.qa.question, item.qa.answer].filter(Boolean).join(' ');
     } else if (item.raw) {
-      text = [item.raw.title, item.raw.text].filter(Boolean).join(" ");
+      text = [item.raw.title, item.raw.text].filter(Boolean).join(' ');
     }
 
     if (text.length > 2000) score += 15;
@@ -498,9 +508,7 @@ export function computeQualityScore(item: any): number {
     if (item.metadata?.correction) score += 5;
 
     if (item.metadata?.is_negative) score -= 5;
-
-  } catch (e) {
-  }
+  } catch (e) {}
 
   return Math.max(0, Math.min(100, Math.round(score)));
 }

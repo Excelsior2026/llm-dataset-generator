@@ -1,17 +1,17 @@
-import { ModelProvider, GenerateOptions, ProviderType } from "./types";
-import { toJsonSchema } from "../utils/index";
+import { ModelProvider, GenerateOptions, ProviderType } from './types';
+import { toJsonSchema } from '../utils/index';
 
 export class LlamaCppProvider implements ModelProvider {
   private baseUrl: string;
   private model: string;
 
   constructor(baseUrl: string, model: string) {
-    this.baseUrl = baseUrl.replace(/\/$/, "");
+    this.baseUrl = baseUrl.replace(/\/$/, '');
     this.model = model;
   }
 
   getProviderType(): ProviderType {
-    return "llamacpp";
+    return 'llamacpp';
   }
 
   async isAvailable(): Promise<boolean> {
@@ -29,7 +29,7 @@ export class LlamaCppProvider implements ModelProvider {
   }
 
   async generate(options: GenerateOptions): Promise<string> {
-    if (options.responseMimeType === "application/json") {
+    if (options.responseMimeType === 'application/json') {
       return this.generateJson(options);
     }
     return this.generateText(options);
@@ -44,12 +44,12 @@ export class LlamaCppProvider implements ModelProvider {
       prompt,
       temperature: options.temperature ?? 0.7,
       n_predict: 4096,
-      stop: ["<|user|>", "<|system|>"],
+      stop: ['<|user|>', '<|system|>'],
     };
 
     const res = await fetch(`${this.baseUrl}/completion`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
 
@@ -59,7 +59,7 @@ export class LlamaCppProvider implements ModelProvider {
     }
 
     const data = await res.json();
-    return data.content || "";
+    return data.content || '';
   }
 
   private async generateJson(options: GenerateOptions): Promise<string> {
@@ -71,7 +71,7 @@ export class LlamaCppProvider implements ModelProvider {
       prompt,
       temperature: options.temperature ?? 0.2,
       n_predict: 4096,
-      stop: ["<|user|>", "<|system|>", "```"],
+      stop: ['<|user|>', '<|system|>', '```'],
     };
 
     if (options.responseSchema) {
@@ -80,8 +80,8 @@ export class LlamaCppProvider implements ModelProvider {
 
     try {
       const res = await fetch(`${this.baseUrl}/completion`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
 
@@ -91,7 +91,7 @@ export class LlamaCppProvider implements ModelProvider {
       }
 
       const data = await res.json();
-      return data.content || "";
+      return data.content || '';
     } catch (e) {
       return this.generateText(options);
     }

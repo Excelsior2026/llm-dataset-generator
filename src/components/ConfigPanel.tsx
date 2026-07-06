@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
-import { DatasetGenerationConfig, DatasetFormat, ProviderType, ModelFunctionConfig } from "../types";
-import { Settings, Sliders, Play, RotateCcw, HelpCircle, FileJson, MessageSquare, HelpCircleIcon, Layers, ChevronRight, Cpu } from "lucide-react";
+import React, { useState } from 'react';
+import { DatasetGenerationConfig, DatasetFormat, ProviderType, ModelFunctionConfig } from '../types';
+import { Sliders, Play, HelpCircle, FileJson, MessageSquare, Layers, Cpu } from 'lucide-react';
 
 interface ConfigPanelProps {
   config: DatasetGenerationConfig;
@@ -20,12 +20,12 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
   const [showModelConfig, setShowModelConfig] = useState(false);
 
   const mc = config.modelConfig || {
-    research: { provider: "ollama" as ProviderType, model: "llama3.2:3b", baseUrl: "http://localhost:11434" },
-    generation: { provider: "ollama" as ProviderType, model: "qwen2.5:7b", baseUrl: "http://localhost:11434" },
-    scoring: { provider: "ollama" as ProviderType, model: "llama3.2:3b", baseUrl: "http://localhost:11434" },
+    research: { provider: 'ollama' as ProviderType, model: 'llama3.2:3b', baseUrl: 'http://localhost:11434' },
+    generation: { provider: 'ollama' as ProviderType, model: 'qwen2.5:7b', baseUrl: 'http://localhost:11434' },
+    scoring: { provider: 'ollama' as ProviderType, model: 'llama3.2:3b', baseUrl: 'http://localhost:11434' },
   };
 
-  const updateModelFunc = (func: "research" | "generation" | "scoring", partial: Partial<ModelFunctionConfig>) => {
+  const updateModelFunc = (func: 'research' | 'generation' | 'scoring', partial: Partial<ModelFunctionConfig>) => {
     onChangeConfig({
       ...config,
       modelConfig: { ...mc, [func]: { ...mc[func], ...partial } },
@@ -35,11 +35,11 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
   // Suggested high-quality training topics to inspire users
   const suggestions = [
     "Quantum Computation and Shor's Algorithm",
-    "History of the Ottoman Empire (1299–1922)",
-    "Rust Memory Safety and Rule of Three",
-    "Photosynthesis Light-Dependent Reactions",
-    "Akaike Information Criterion (AIC) derivation",
-    "Roman Architecture & Aqueduct Engineering"
+    'History of the Ottoman Empire (1299–1922)',
+    'Rust Memory Safety and Rule of Three',
+    'Photosynthesis Light-Dependent Reactions',
+    'Akaike Information Criterion (AIC) derivation',
+    'Roman Architecture & Aqueduct Engineering',
   ];
 
   const setTopic = (topic: string) => {
@@ -49,14 +49,15 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
   const handleFormatChange = (format: DatasetFormat) => {
     // Autofill an appropriate system prompt configuration based on format choice
     let systemPromptText = config.systemPromptText;
-    if (format === "alpaca") {
-      systemPromptText = "You are a professional instructor. Generate detailed, structured instruction-following pairs.";
-    } else if (format === "sharegpt") {
-      systemPromptText = "You are simulating natural human chat interactions. Compile conversational multi-turn logs.";
-    } else if (format === "qa") {
-      systemPromptText = "You are an expert tutor. Provide accurate, clear question and answer pairs.";
-    } else if (format === "raw") {
-      systemPromptText = "You are textbook editor. Compose encyclopedic, highly educational raw literature passages.";
+    if (format === 'alpaca') {
+      systemPromptText =
+        'You are a professional instructor. Generate detailed, structured instruction-following pairs.';
+    } else if (format === 'sharegpt') {
+      systemPromptText = 'You are simulating natural human chat interactions. Compile conversational multi-turn logs.';
+    } else if (format === 'qa') {
+      systemPromptText = 'You are an expert tutor. Provide accurate, clear question and answer pairs.';
+    } else if (format === 'raw') {
+      systemPromptText = 'You are textbook editor. Compose encyclopedic, highly educational raw literature passages.';
     }
     onChangeConfig({ ...config, format, systemPromptText });
   };
@@ -83,14 +84,16 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
               className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-600 outline-none font-medium text-slate-850 placeholder:text-slate-400 transition-all"
               placeholder="e.g., Photosynthesis mechanics, ancient history, coding standards..."
               value={config.topic}
-              onChange={(e) => onChangeConfig({ ...config, topic: e.target.value })}
+              onChange={e => onChangeConfig({ ...config, topic: e.target.value })}
               disabled={isLoading}
             />
           </div>
 
           {/* Preset Suggestions */}
           <div className="mt-2.5" id="preset-suggestions">
-            <p className="text-[10px] text-slate-400 mb-1.5 font-bold uppercase tracking-wider">✨ Recommended Sources:</p>
+            <p className="text-[10px] text-slate-400 mb-1.5 font-bold uppercase tracking-wider">
+              ✨ Recommended Sources:
+            </p>
             <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
               {suggestions.map((suggestion, idx) => (
                 <button
@@ -118,14 +121,15 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
               type="text"
               className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-600 outline-none font-medium text-slate-850 placeholder:text-slate-400 transition-all"
               placeholder="e.g., Economics, Biology, Music Theory..."
-              value={config.secondaryTopic || ""}
-              onChange={(e) => onChangeConfig({ ...config, secondaryTopic: e.target.value })}
+              value={config.secondaryTopic || ''}
+              onChange={e => onChangeConfig({ ...config, secondaryTopic: e.target.value })}
               disabled={isLoading}
             />
           </div>
           {config.secondaryTopic && (
             <p className="text-[10px] text-indigo-600 font-medium mt-1">
-              Dataset will explore the intersection of &ldquo;{config.topic}&rdquo; and &ldquo;{config.secondaryTopic}&rdquo;
+              Dataset will explore the intersection of &ldquo;{config.topic}&rdquo; and &ldquo;{config.secondaryTopic}
+              &rdquo;
             </p>
           )}
         </div>
@@ -139,12 +143,12 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
             <button
               type="button"
               id="format-alpaca"
-              onClick={() => handleFormatChange("alpaca")}
+              onClick={() => handleFormatChange('alpaca')}
               disabled={isLoading}
               className={`flex items-center gap-2 p-2.5 text-left border rounded-lg transition-all ${
-                config.format === "alpaca"
-                  ? "bg-indigo-50/50 border-indigo-600 text-indigo-900 ring-2 ring-indigo-500/10"
-                  : "border-slate-200 text-slate-600 hover:border-slate-300 bg-slate-50/40"
+                config.format === 'alpaca'
+                  ? 'bg-indigo-50/50 border-indigo-600 text-indigo-900 ring-2 ring-indigo-500/10'
+                  : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-slate-50/40'
               }`}
             >
               <FileJson className="w-4 h-4 shrink-0 text-indigo-500" />
@@ -157,12 +161,12 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
             <button
               type="button"
               id="format-sharegpt"
-              onClick={() => handleFormatChange("sharegpt")}
+              onClick={() => handleFormatChange('sharegpt')}
               disabled={isLoading}
               className={`flex items-center gap-2 p-2.5 text-left border rounded-lg transition-all ${
-                config.format === "sharegpt"
-                  ? "bg-indigo-50/50 border-indigo-600 text-indigo-900 ring-2 ring-indigo-500/10"
-                  : "border-slate-200 text-slate-600 hover:border-slate-300 bg-slate-50/40"
+                config.format === 'sharegpt'
+                  ? 'bg-indigo-50/50 border-indigo-600 text-indigo-900 ring-2 ring-indigo-500/10'
+                  : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-slate-50/40'
               }`}
             >
               <MessageSquare className="w-4 h-4 shrink-0 text-emerald-500" />
@@ -175,12 +179,12 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
             <button
               type="button"
               id="format-qa"
-              onClick={() => handleFormatChange("qa")}
+              onClick={() => handleFormatChange('qa')}
               disabled={isLoading}
               className={`flex items-center gap-2 p-2.5 text-left border rounded-lg transition-all ${
-                config.format === "qa"
-                  ? "bg-indigo-50/50 border-indigo-600 text-indigo-900 ring-2 ring-indigo-500/10"
-                  : "border-slate-200 text-slate-600 hover:border-slate-300 bg-slate-50/40"
+                config.format === 'qa'
+                  ? 'bg-indigo-50/50 border-indigo-600 text-indigo-900 ring-2 ring-indigo-500/10'
+                  : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-slate-50/40'
               }`}
             >
               <HelpCircle className="w-4 h-4 shrink-0 text-amber-500" />
@@ -193,12 +197,12 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
             <button
               type="button"
               id="format-raw"
-              onClick={() => handleFormatChange("raw")}
+              onClick={() => handleFormatChange('raw')}
               disabled={isLoading}
               className={`flex items-center gap-2 p-2.5 text-left border rounded-lg transition-all ${
-                config.format === "raw"
-                  ? "bg-indigo-50/50 border-indigo-600 text-indigo-900 ring-2 ring-indigo-500/10"
-                  : "border-slate-200 text-slate-600 hover:border-slate-300 bg-slate-50/40"
+                config.format === 'raw'
+                  ? 'bg-indigo-50/50 border-indigo-600 text-indigo-900 ring-2 ring-indigo-500/10'
+                  : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-slate-50/40'
               }`}
             >
               <Layers className="w-4 h-4 shrink-0 text-slate-500" />
@@ -219,7 +223,7 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
             <select
               id="select-size"
               value={config.size}
-              onChange={(e) => onChangeConfig({ ...config, size: Number(e.target.value) })}
+              onChange={e => onChangeConfig({ ...config, size: Number(e.target.value) })}
               disabled={isLoading}
               className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 font-medium focus:ring-2 focus:ring-indigo-600 outline-none"
             >
@@ -232,16 +236,14 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Temperature ({config.temperature})
-            </label>
+            <label className="block text-xs font-medium text-slate-700 mb-1">Temperature ({config.temperature})</label>
             <input
               type="range"
               min="0.2"
               max="1.0"
               step="0.1"
               value={config.temperature}
-              onChange={(e) => onChangeConfig({ ...config, temperature: Number(e.target.value) })}
+              onChange={e => onChangeConfig({ ...config, temperature: Number(e.target.value) })}
               disabled={isLoading}
               className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 mt-3.5 disabled:opacity-50"
             />
@@ -257,7 +259,7 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
             <select
               id="select-complexity"
               value={config.complexity}
-              onChange={(e) => onChangeConfig({ ...config, complexity: e.target.value as any })}
+              onChange={e => onChangeConfig({ ...config, complexity: e.target.value as any })}
               disabled={isLoading}
               className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 font-medium focus:ring-2 focus:ring-indigo-600 outline-none"
             >
@@ -274,7 +276,7 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
             <select
               id="select-tone"
               value={config.tone}
-              onChange={(e) => onChangeConfig({ ...config, tone: e.target.value as any })}
+              onChange={e => onChangeConfig({ ...config, tone: e.target.value as any })}
               disabled={isLoading}
               className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 font-medium focus:ring-2 focus:ring-indigo-600 outline-none"
             >
@@ -292,17 +294,19 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-slate-500">Adversarial Red-Teaming</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Generate adversarial edge cases and safety evaluation examples</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Generate adversarial edge cases and safety evaluation examples
+              </p>
             </div>
             <button
               onClick={() => onChangeConfig({ ...config, redTeam: !config.redTeam })}
               className={`relative w-10 h-5 rounded-full transition-colors ${
-                config.redTeam ? "bg-red-500" : "bg-slate-200"
+                config.redTeam ? 'bg-red-500' : 'bg-slate-200'
               }`}
             >
               <span
                 className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-xs transition-transform ${
-                  config.redTeam ? "translate-x-5" : ""
+                  config.redTeam ? 'translate-x-5' : ''
                 }`}
               />
             </button>
@@ -320,10 +324,13 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
             <Sliders className="w-3.5 h-3.5" />
             <span>Customize Core Instruction</span>
           </button>
-          
+
           {showAdvanced && (
             <div className="mt-2.5 space-y-2 animate-fade" id="advanced-config-inputs">
-              <label className="block text-[11px] text-slate-400 font-medium leading-relaxed" htmlFor="text-system-prompt">
+              <label
+                className="block text-[11px] text-slate-400 font-medium leading-relaxed"
+                htmlFor="text-system-prompt"
+              >
                 Provide custom guidelines for the model synthesis output structure.
               </label>
               <textarea
@@ -332,7 +339,7 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
                 disabled={isLoading}
                 className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-600 outline-none text-slate-700 transition"
                 value={config.systemPromptText}
-                onChange={(e) => onChangeConfig({ ...config, systemPromptText: e.target.value })}
+                onChange={e => onChangeConfig({ ...config, systemPromptText: e.target.value })}
                 placeholder="Customize details (e.g. Include custom markdown tables, restrict sentences...)"
               />
             </div>
@@ -352,7 +359,7 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
 
           {showModelConfig && (
             <div className="mt-2.5 space-y-3 animate-fade">
-              {(["research", "generation", "scoring"] as const).map((func) => (
+              {(['research', 'generation', 'scoring'] as const).map(func => (
                 <div key={func} className="bg-slate-50 rounded-lg p-3 border border-slate-200 space-y-2">
                   <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider capitalize">{func}</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -360,7 +367,7 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
                       <label className="text-[10px] text-slate-400 font-medium">Provider</label>
                       <select
                         value={mc[func].provider}
-                        onChange={(e) => updateModelFunc(func, { provider: e.target.value as ProviderType })}
+                        onChange={e => updateModelFunc(func, { provider: e.target.value as ProviderType })}
                         className="w-full text-xs bg-white border border-slate-200 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-indigo-600 outline-none"
                       >
                         <option value="ollama">Ollama</option>
@@ -373,19 +380,22 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
                       <input
                         type="text"
                         value={mc[func].model}
-                        onChange={(e) => updateModelFunc(func, { model: e.target.value })}
+                        onChange={e => updateModelFunc(func, { model: e.target.value })}
                         className="w-full text-xs bg-white border border-slate-200 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-indigo-600 outline-none"
                         placeholder="model name"
                       />
                     </div>
                   </div>
-                  {mc[func].provider !== "gemini" ? (
+                  {mc[func].provider !== 'gemini' ? (
                     <div>
                       <label className="text-[10px] text-slate-400 font-medium">Base URL</label>
                       <input
                         type="text"
-                        value={mc[func].baseUrl || (mc[func].provider === "ollama" ? "http://localhost:11434" : "http://localhost:8080")}
-                        onChange={(e) => updateModelFunc(func, { baseUrl: e.target.value })}
+                        value={
+                          mc[func].baseUrl ||
+                          (mc[func].provider === 'ollama' ? 'http://localhost:11434' : 'http://localhost:8080')
+                        }
+                        onChange={e => updateModelFunc(func, { baseUrl: e.target.value })}
                         className="w-full text-xs bg-white border border-slate-200 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-indigo-600 outline-none"
                       />
                     </div>
@@ -394,8 +404,8 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
                       <label className="text-[10px] text-slate-400 font-medium">API Key</label>
                       <input
                         type="password"
-                        value={mc[func].apiKey || ""}
-                        onChange={(e) => updateModelFunc(func, { apiKey: e.target.value })}
+                        value={mc[func].apiKey || ''}
+                        onChange={e => updateModelFunc(func, { apiKey: e.target.value })}
                         className="w-full text-xs bg-white border border-slate-200 rounded-lg py-1.5 px-2 focus:ring-2 focus:ring-indigo-600 outline-none"
                         placeholder="GEMINI_API_KEY"
                       />
@@ -419,8 +429,20 @@ export default function ConfigPanel({ config, onChangeConfig, onSubmit, isLoadin
             <div className="flex flex-col items-center gap-0.5 py-0.5">
               <div className="flex items-center gap-2">
                 <svg className="animate-spin h-4 w-4 text-slate-650" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
                 </svg>
                 <span className="font-bold text-slate-700">Synthesizing Dataset...</span>
               </div>

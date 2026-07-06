@@ -26,12 +26,21 @@ export interface ValidationResult {
   warnings: ValidationWarning[];
 }
 
-export function validateAlpacaItem(item: AlpacaItem, index: number, itemId: string): { errors: ValidationError[]; warnings: ValidationWarning[] } {
+export function validateAlpacaItem(
+  item: AlpacaItem,
+  index: number,
+  itemId: string
+): { errors: ValidationError[]; warnings: ValidationWarning[] } {
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
 
   if (!item.instruction || item.instruction.trim().length === 0) {
-    errors.push({ itemIndex: index, itemId, field: 'instruction', message: 'Instruction is required and cannot be empty' });
+    errors.push({
+      itemIndex: index,
+      itemId,
+      field: 'instruction',
+      message: 'Instruction is required and cannot be empty',
+    });
   }
 
   if (!item.output || item.output.trim().length === 0) {
@@ -49,7 +58,11 @@ export function validateAlpacaItem(item: AlpacaItem, index: number, itemId: stri
   return { errors, warnings };
 }
 
-export function validateShareGPTItem(item: ShareGPTItem, index: number, itemId: string): { errors: ValidationError[]; warnings: ValidationWarning[] } {
+export function validateShareGPTItem(
+  item: ShareGPTItem,
+  index: number,
+  itemId: string
+): { errors: ValidationError[]; warnings: ValidationWarning[] } {
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
 
@@ -65,16 +78,26 @@ export function validateShareGPTItem(item: ShareGPTItem, index: number, itemId: 
 
   item.messages.forEach((msg, msgIdx) => {
     if (!msg.role || !['system', 'user', 'assistant'].includes(msg.role)) {
-      errors.push({ itemIndex: index, itemId, field: `messages[${msgIdx}].role`, message: 'Invalid role, must be system/user/assistant' });
+      errors.push({
+        itemIndex: index,
+        itemId,
+        field: `messages[${msgIdx}].role`,
+        message: 'Invalid role, must be system/user/assistant',
+      });
     }
     if (!msg.content || msg.content.trim().length === 0) {
-      errors.push({ itemIndex: index, itemId, field: `messages[${msgIdx}].content`, message: 'Message content cannot be empty' });
+      errors.push({
+        itemIndex: index,
+        itemId,
+        field: `messages[${msgIdx}].content`,
+        message: 'Message content cannot be empty',
+      });
     }
   });
 
   const hasUserMessage = item.messages.some(m => m.role === 'user');
   const hasAssistantMessage = item.messages.some(m => m.role === 'assistant');
-  
+
   if (!hasUserMessage) {
     warnings.push({ itemIndex: index, itemId, message: 'No user message found' });
   }
@@ -85,7 +108,11 @@ export function validateShareGPTItem(item: ShareGPTItem, index: number, itemId: 
   return { errors, warnings };
 }
 
-export function validateQAItem(item: QAItem, index: number, itemId: string): { errors: ValidationError[]; warnings: ValidationWarning[] } {
+export function validateQAItem(
+  item: QAItem,
+  index: number,
+  itemId: string
+): { errors: ValidationError[]; warnings: ValidationWarning[] } {
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
 
@@ -108,7 +135,11 @@ export function validateQAItem(item: QAItem, index: number, itemId: string): { e
   return { errors, warnings };
 }
 
-export function validateRawItem(item: RawItem, index: number, itemId: string): { errors: ValidationError[]; warnings: ValidationWarning[] } {
+export function validateRawItem(
+  item: RawItem,
+  index: number,
+  itemId: string
+): { errors: ValidationError[]; warnings: ValidationWarning[] } {
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
 
@@ -127,7 +158,10 @@ export function validateRawItem(item: RawItem, index: number, itemId: string): {
   return { errors, warnings };
 }
 
-export function validateDatasetItem(item: DatasetItem, index: number): { errors: ValidationError[]; warnings: ValidationWarning[] } {
+export function validateDatasetItem(
+  item: DatasetItem,
+  index: number
+): { errors: ValidationError[]; warnings: ValidationWarning[] } {
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
 
@@ -136,7 +170,12 @@ export function validateDatasetItem(item: DatasetItem, index: number): { errors:
   }
 
   if (!item.format || !['alpaca', 'sharegpt', 'qa', 'raw'].includes(item.format)) {
-    errors.push({ itemIndex: index, itemId: item.id || 'unknown', field: 'format', message: 'Invalid format, must be alpaca/sharegpt/qa/raw' });
+    errors.push({
+      itemIndex: index,
+      itemId: item.id || 'unknown',
+      field: 'format',
+      message: 'Invalid format, must be alpaca/sharegpt/qa/raw',
+    });
     return { errors, warnings };
   }
 
@@ -150,10 +189,20 @@ export function validateDatasetItem(item: DatasetItem, index: number): { errors:
       warnings.push({ itemIndex: index, itemId: item.id || 'unknown', message: 'Intent is not specified' });
     }
     if (!item.metadata.complexity || !['novice', 'intermediate', 'expert'].includes(item.metadata.complexity)) {
-      errors.push({ itemIndex: index, itemId: item.id || 'unknown', field: 'metadata.complexity', message: 'Invalid complexity level' });
+      errors.push({
+        itemIndex: index,
+        itemId: item.id || 'unknown',
+        field: 'metadata.complexity',
+        message: 'Invalid complexity level',
+      });
     }
     if (typeof item.metadata.is_negative !== 'boolean') {
-      errors.push({ itemIndex: index, itemId: item.id || 'unknown', field: 'metadata.is_negative', message: 'is_negative must be a boolean' });
+      errors.push({
+        itemIndex: index,
+        itemId: item.id || 'unknown',
+        field: 'metadata.is_negative',
+        message: 'is_negative must be a boolean',
+      });
     }
   }
 
@@ -161,14 +210,19 @@ export function validateDatasetItem(item: DatasetItem, index: number): { errors:
     alpaca: validateAlpacaItem,
     sharegpt: validateShareGPTItem,
     qa: validateQAItem,
-    raw: validateRawItem
+    raw: validateRawItem,
   };
 
   const validator = formatValidators[item.format];
   const formatData = item[item.format];
-  
+
   if (!formatData) {
-    errors.push({ itemIndex: index, itemId: item.id || 'unknown', field: item.format, message: `${item.format} data is missing` });
+    errors.push({
+      itemIndex: index,
+      itemId: item.id || 'unknown',
+      field: item.format,
+      message: `${item.format} data is missing`,
+    });
   } else {
     const result = validator(formatData as any, index, item.id || 'unknown');
     errors.push(...result.errors);
@@ -188,7 +242,7 @@ export function validateDataset(items: DatasetItem[], format?: DatasetFormat): V
         itemIndex: index,
         itemId: item.id || 'unknown',
         field: 'format',
-        message: `Expected format ${format}, got ${item.format}`
+        message: `Expected format ${format}, got ${item.format}`,
       });
       return;
     }
@@ -206,6 +260,6 @@ export function validateDataset(items: DatasetItem[], format?: DatasetFormat): V
     totalItems: items.length,
     validItems,
     errors: allErrors,
-    warnings: allWarnings
+    warnings: allWarnings,
   };
 }

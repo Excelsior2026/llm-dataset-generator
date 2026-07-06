@@ -7,7 +7,7 @@ export enum LogLevel {
   DEBUG = 0,
   INFO = 1,
   WARN = 2,
-  ERROR = 3
+  ERROR = 3,
 }
 
 export interface LogEntry {
@@ -29,7 +29,7 @@ export interface LoggerOptions {
 export class EnhancedLogger {
   private static instance: EnhancedLogger;
   private logs: LogEntry[] = [];
-  private readonly maxLogs: number;
+  private maxLogs: number;
   private level: LogLevel;
   private jsonOutput: boolean;
   private correlationId?: string;
@@ -94,7 +94,7 @@ export class EnhancedLogger {
       message,
       correlationId: this.correlationId,
       error,
-      metadata
+      metadata,
     };
 
     this.logs.push(entry);
@@ -109,14 +109,14 @@ export class EnhancedLogger {
         msg: entry.message,
         corr_id: entry.correlationId,
         ...(entry.metadata && { meta: entry.metadata }),
-        ...(entry.error && { err: this.serializeError(entry.error) })
+        ...(entry.error && { err: this.serializeError(entry.error) }),
       };
       console.log(JSON.stringify(output));
     } else {
       const prefix = `[${levelStr.toUpperCase()}]`;
       const corrPrefix = entry.correlationId ? `[${entry.correlationId.substring(0, 8)}] ` : '';
       const baseMsg = `${prefix} ${new Date(entry.timestamp).toISOString()} - ${corrPrefix}${message}`;
-      
+
       if (level === LogLevel.ERROR) {
         console.error(baseMsg, error);
       } else if (level === LogLevel.WARN) {
@@ -133,7 +133,7 @@ export class EnhancedLogger {
       message: error.message || String(error),
       stack: error.stack,
       name: error.name,
-      code: error.code
+      code: error.code,
     };
   }
 
@@ -164,7 +164,7 @@ export class EnhancedLogger {
       debug: 0,
       info: 0,
       warn: 0,
-      error: 0
+      error: 0,
     };
     this.logs.forEach(log => {
       byLevel[log.level] = (byLevel[log.level] || 0) + 1;
@@ -174,4 +174,3 @@ export class EnhancedLogger {
 }
 
 export const logger = EnhancedLogger.getInstance();
-export { LogLevel };

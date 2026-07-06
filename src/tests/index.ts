@@ -1,5 +1,5 @@
 // Test suite for LLM Dataset Generator utilities
-import { describe, it, beforeEach, afterEach } from 'node:test';
+import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { ApiError, withRetry, createTimeoutPromise, Logger, Memoizer } from '../utils/index';
 
@@ -52,10 +52,7 @@ describe('withRetry', () => {
       throw new Error('Persistent failure');
     };
 
-    await assert.rejects(
-      withRetry(failingFunction, 2, 10),
-      { name: 'Error', message: 'Persistent failure' }
-    );
+    await assert.rejects(withRetry(failingFunction, 2, 10), { name: 'Error', message: 'Persistent failure' });
   });
 });
 
@@ -64,20 +61,13 @@ describe('withRetry', () => {
  */
 describe('createTimeoutPromise', () => {
   it('should resolve before timeout', async () => {
-    const result = await createTimeoutPromise(
-      Promise.resolve('quick result'),
-      100
-    );
+    const result = await createTimeoutPromise(Promise.resolve('quick result'), 100);
     assert.strictEqual(result, 'quick result');
   });
 
   it('should reject if timeout occurs', async () => {
     await assert.rejects(
-      createTimeoutPromise(
-        new Promise(resolve => setTimeout(() => resolve('slow'), 200)),
-        50,
-        'Custom timeout error'
-      ),
+      createTimeoutPromise(new Promise(resolve => setTimeout(() => resolve('slow'), 200)), 50, 'Custom timeout error'),
       { name: 'ApiError', message: 'Custom timeout error' }
     );
   });
@@ -98,17 +88,17 @@ describe('Logger', () => {
     logger.info('Test info');
     const logs = logger.getLogs('info');
     assert.strictEqual(logs.length, 1);
-    assert.strictEqual(logs[0].level, 'info');
-    assert.strictEqual(logs[0].message, 'Test info');
+    assert.strictEqual(logs[0]?.level, 'info');
+    assert.strictEqual(logs[0]?.message, 'Test info');
   });
 
   it('should log error messages', () => {
     logger.error('Test error', new Error('Test error details'));
     const logs = logger.getLogs('error');
     assert.strictEqual(logs.length, 1);
-    assert.strictEqual(logs[0].level, 'error');
-    assert.strictEqual(logs[0].message, 'Test error');
-    assert(logs[0].error instanceof Error);
+    assert.strictEqual(logs[0]?.level, 'error');
+    assert.strictEqual(logs[0]?.message, 'Test error');
+    assert(logs[0]?.error instanceof Error);
   });
 
   it('should filter logs by level', () => {
@@ -162,80 +152,92 @@ describe('Memoizer', () => {
   });
 });
 
-  /**
-   * Test getSchemaForFormat function
-   */
-  describe('getSchemaForFormat', () => {
-    let getSchemaForFormat: (format: string) => Record<string, any>;
-    
-    beforeEach(async () => {
-      const utils = await import('../utils/index');
-      getSchemaForFormat = utils.getSchemaForFormat;
-    });
-    
-    it('should return a valid schema for alpaca format', () => {
-      const schema = getSchemaForFormat('alpaca');
-      assert.strictEqual(schema.type, 'OBJECT');
-      assert(schema.properties.items.type, 'ARRAY');
-      assert('instruction' in schema.properties.items.items.properties);
-      assert('input' in schema.properties.items.items.properties);
-      assert('output' in schema.properties.items.items.properties);
-    });
-    
-    it('should return a valid schema for sharegpt format', () => {
-      const schema = getSchemaForFormat('sharegpt');
-      assert.strictEqual(schema.type, 'OBJECT');
-      assert(schema.properties.items.type, 'ARRAY');
-      assert('messages' in schema.properties.items.items.properties);
-    });
-    
-    it('should return a valid schema for qa format', () => {
-      const schema = getSchemaForFormat('qa');
-      assert.strictEqual(schema.type, 'OBJECT');
-      assert(schema.properties.items.type, 'ARRAY');
-      assert('question' in schema.properties.items.items.properties);
-      assert('answer' in schema.properties.items.items.properties);
-    });
-    
-    it('should return a valid schema for raw format', () => {
-      const schema = getSchemaForFormat('raw');
-      assert.strictEqual(schema.type, 'OBJECT');
-      assert(schema.properties.items.type, 'ARRAY');
-      assert('title' in schema.properties.items.items.properties);
-      assert('text' in schema.properties.items.items.properties);
-    });
-    
-    it('should return a default schema for unknown format', () => {
-      const schema = getSchemaForFormat('unknown');
-      assert.strictEqual(schema.type, 'OBJECT');
-      assert(schema.properties.items.type, 'ARRAY');
-    });
+/**
+ * Test getSchemaForFormat function
+ */
+describe('getSchemaForFormat', () => {
+  let getSchemaForFormat: (format: string) => Record<string, any>;
+
+  beforeEach(async () => {
+    const utils = await import('../utils/index');
+    getSchemaForFormat = utils.getSchemaForFormat;
   });
 
-  /**
-   * Test mapItemToFormat function
-   */
-  describe('mapItemToFormat', () => {
-    // This test requires importing from the utils file
-    // Since it's a private function, we'll test it indirectly through server functionality
-    it('should be properly exported', async () => {
-      const { mapItemToFormat } = await import('../utils/index');
-      
-      // Test Alpaca format
-      const alpacaResult = mapItemToFormat(
-        {
-          instruction: 'Test instruction',
-          input: 'Test input',
-          output: 'Test output',
-          topic: 'Test topic'
-        },
-        'alpaca',
-        'test-id',
-        'Test topic'
-      );
-      
-      assert.strictEqual(alpacaResult.id, 'test-id');
-      assert.strictEqual(alpacaResult.format, 'alpaca');
-      assert.strictEqual(alpacaResult.alpaca?.instruction, 'Test instruction');
-    });
+  it('should return a valid schema for alpaca format', () => {
+    const schema = getSchemaForFormat('alpaca');
+    assert.strictEqual(schema.type, 'OBJECT');
+    assert.strictEqual(schema.properties.items.type, 'ARRAY');
+    const alpaca = schema.properties.items.items.properties.alpaca;
+    assert(alpaca, 'alpaca sub-schema should exist');
+    assert('instruction' in alpaca.properties);
+    assert('input' in alpaca.properties);
+    assert('output' in alpaca.properties);
+    assert(schema.properties.items.items.required.includes('alpaca'));
   });
+
+  it('should return a valid schema for sharegpt format', () => {
+    const schema = getSchemaForFormat('sharegpt');
+    assert.strictEqual(schema.type, 'OBJECT');
+    assert.strictEqual(schema.properties.items.type, 'ARRAY');
+    const sharegpt = schema.properties.items.items.properties.sharegpt;
+    assert(sharegpt, 'sharegpt sub-schema should exist');
+    assert('messages' in sharegpt.properties);
+    assert(schema.properties.items.items.required.includes('sharegpt'));
+  });
+
+  it('should return a valid schema for qa format', () => {
+    const schema = getSchemaForFormat('qa');
+    assert.strictEqual(schema.type, 'OBJECT');
+    assert.strictEqual(schema.properties.items.type, 'ARRAY');
+    const qa = schema.properties.items.items.properties.qa;
+    assert(qa, 'qa sub-schema should exist');
+    assert('question' in qa.properties);
+    assert('answer' in qa.properties);
+    assert(schema.properties.items.items.required.includes('qa'));
+  });
+
+  it('should return a valid schema for raw format', () => {
+    const schema = getSchemaForFormat('raw');
+    assert.strictEqual(schema.type, 'OBJECT');
+    assert.strictEqual(schema.properties.items.type, 'ARRAY');
+    const raw = schema.properties.items.items.properties.raw;
+    assert(raw, 'raw sub-schema should exist');
+    assert('title' in raw.properties);
+    assert('text' in raw.properties);
+    assert(schema.properties.items.items.required.includes('raw'));
+  });
+
+  it('should return a default schema for unknown format', () => {
+    const schema = getSchemaForFormat('unknown');
+    assert.strictEqual(schema.type, 'OBJECT');
+    assert(schema.properties.items.type, 'ARRAY');
+  });
+});
+
+/**
+ * Test mapItemToFormat function
+ */
+describe('mapItemToFormat', () => {
+  // This test requires importing from the utils file
+  // Since it's a private function, we'll test it indirectly through server functionality
+  it('should be properly exported', async () => {
+    const { mapItemToFormat } = await import('../utils/index');
+
+    // Test Alpaca format
+    const alpacaResult = mapItemToFormat(
+      {
+        instruction: 'Test instruction',
+        input: 'Test input',
+        output: 'Test output',
+        topic: 'Test topic',
+      },
+      'alpaca',
+      'test-id',
+      'Test topic'
+    );
+
+    assert.strictEqual(alpacaResult.id, 'test-id');
+    assert.strictEqual(alpacaResult.format, 'alpaca');
+    assert.strictEqual(alpacaResult.alpaca?.instruction, 'Test instruction');
+  });
+});

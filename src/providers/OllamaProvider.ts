@@ -1,17 +1,17 @@
-import { ModelProvider, GenerateOptions, ProviderType } from "./types";
-import { toJsonSchema } from "../utils/index";
+import { ModelProvider, GenerateOptions, ProviderType } from './types';
+import { toJsonSchema } from '../utils/index';
 
 export class OllamaProvider implements ModelProvider {
   private baseUrl: string;
   private model: string;
 
   constructor(baseUrl: string, model: string) {
-    this.baseUrl = baseUrl.replace(/\/$/, "");
+    this.baseUrl = baseUrl.replace(/\/$/, '');
     this.model = model;
   }
 
   getProviderType(): ProviderType {
-    return "ollama";
+    return 'ollama';
   }
 
   async isAvailable(): Promise<boolean> {
@@ -26,9 +26,7 @@ export class OllamaProvider implements ModelProvider {
   async generate(options: GenerateOptions): Promise<string> {
     const body: any = {
       model: this.model,
-      prompt: options.systemPrompt
-        ? `${options.systemPrompt}\n\n${options.prompt}`
-        : options.prompt,
+      prompt: options.systemPrompt ? `${options.systemPrompt}\n\n${options.prompt}` : options.prompt,
       stream: false,
       options: {},
     };
@@ -37,13 +35,13 @@ export class OllamaProvider implements ModelProvider {
       body.options.temperature = options.temperature;
     }
 
-    if (options.responseMimeType === "application/json") {
-      body.format = options.responseSchema ? toJsonSchema(options.responseSchema) : "json";
+    if (options.responseMimeType === 'application/json') {
+      body.format = options.responseSchema ? toJsonSchema(options.responseSchema) : 'json';
     }
 
     const res = await fetch(`${this.baseUrl}/api/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
 
@@ -53,6 +51,6 @@ export class OllamaProvider implements ModelProvider {
     }
 
     const data = await res.json();
-    return data.response || "";
+    return data.response || '';
   }
 }
