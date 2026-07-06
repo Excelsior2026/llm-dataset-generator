@@ -1,4 +1,6 @@
-export { ProviderType, ModelFunction, ModelFunctionConfig, ProviderConfig } from '../types';
+import type { ProviderType, ProviderConfig } from '../types';
+
+export type { ProviderType, ModelFunction, ModelFunctionConfig, ProviderConfig } from '../types';
 
 export interface GenerateOptions {
   prompt: string;

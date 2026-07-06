@@ -4,8 +4,8 @@
  */
 
 export * from './logger';
-export * from './advanced';
-export * from './cache';
+// './advanced' and './cache' use Node built-ins (events, crypto); import them
+// directly in server-side code — re-exporting here breaks the browser bundle.
 export * from './validation';
 
 export interface ItemMapping {
@@ -195,7 +195,7 @@ export async function withRetry<T>(
   delay: number = 1000,
   backoffFactor: number = 2
 ): Promise<T> {
-  let lastError: Error;
+  let lastError: Error | undefined;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -214,7 +214,7 @@ export async function withRetry<T>(
     }
   }
 
-  throw lastError;
+  throw lastError ?? new Error('Retry failed: no attempts were made');
 }
 
 export function createTimeoutPromise<T>(

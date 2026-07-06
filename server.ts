@@ -136,14 +136,14 @@ Format the end of your response exactly like this:
 
     const subtopicMatch = researchSummary.match(/\[SUBTOPICS\](.*?)(\[END\]|$)/s);
     if (subtopicMatch) {
-      subtopics = subtopicMatch[1].split("|").map(s => s.trim()).filter(Boolean);
+      subtopics = (subtopicMatch[1] ?? "").split("|").map(s => s.trim()).filter(Boolean);
       researchSummary = researchSummary.replace(/\[SUBTOPICS\].*?(\[END\]|$)/s, "").trim();
     }
 
     const kgMatch = researchSummary.match(/\[KNOWLEDGE_GRAPH\](.*?)(\[END\]|$)/s);
     if (kgMatch) {
       try {
-        const parsed = JSON.parse(kgMatch[1].trim());
+        const parsed = JSON.parse((kgMatch[1] ?? "").trim());
         if (parsed.nodes && Array.isArray(parsed.nodes) && parsed.edges && Array.isArray(parsed.edges)) {
           knowledgeGraph = parsed;
         }
@@ -362,7 +362,7 @@ Format the end of your response exactly like this:
     let subtopics: string[] = [];
     const subtopicMatch = researchSummary.match(/\[SUBTOPICS\](.*?)(\[END\]|$)/s);
     if (subtopicMatch) {
-      subtopics = subtopicMatch[1].split("|").map(s => s.trim()).filter(Boolean);
+      subtopics = (subtopicMatch[1] ?? "").split("|").map(s => s.trim()).filter(Boolean);
       researchSummary = researchSummary.replace(/\[SUBTOPICS\].*?(\[END\]|$)/s, "").trim();
     }
 
@@ -370,7 +370,7 @@ Format the end of your response exactly like this:
     const kgMatch = researchSummary.match(/\[KNOWLEDGE_GRAPH\](.*?)(\[END\]|$)/s);
     if (kgMatch) {
       try {
-        const parsed = JSON.parse(kgMatch[1].trim());
+        const parsed = JSON.parse((kgMatch[1] ?? "").trim());
         if (parsed.nodes && Array.isArray(parsed.nodes) && parsed.edges && Array.isArray(parsed.edges)) {
           knowledgeGraph = parsed;
         }

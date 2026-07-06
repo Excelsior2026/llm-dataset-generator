@@ -300,17 +300,18 @@ export class MetricsCollector {
     const sum = values.reduce((a, b) => a + b, 0);
     const count = values.length;
     
+    // sorted is non-empty here (guarded above), so indexed reads are safe
     const percentile = (p: number) => {
       const idx = Math.ceil((p / 100) * sorted.length) - 1;
-      return sorted[Math.max(0, idx)];
+      return sorted[Math.max(0, idx)]!;
     };
 
     return {
       count,
       sum,
       avg: sum / count,
-      min: sorted[0],
-      max: sorted[sorted.length - 1],
+      min: sorted[0]!,
+      max: sorted[sorted.length - 1]!,
       p50: percentile(50),
       p95: percentile(95),
       p99: percentile(99)

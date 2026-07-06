@@ -56,7 +56,7 @@ export default function MetricsPanel({ items }: MetricsPanelProps) {
 
   // Analyze subtopics
   const topicCounts: Record<string, number> = {};
-  const lengthBins: number[] = Array(5).fill(0); // 0-200 chars, 201-500, 501-1000, 1001-2000, 2001+
+  const lengthBins: [number, number, number, number, number] = [0, 0, 0, 0, 0]; // 0-200 chars, 201-500, 501-1000, 1001-2000, 2001+
 
   items.forEach(item => {
     const { prompt, completion } = extractText(item);
@@ -91,7 +91,7 @@ export default function MetricsPanel({ items }: MetricsPanelProps) {
   // Format data for Recharts
   const subtopicData = Object.keys(topicCounts).map(name => ({
     name: name.length > 18 ? name.substring(0, 16) + "..." : name,
-    count: topicCounts[name]
+    count: topicCounts[name] ?? 0
   })).sort((a,b) => b.count - a.count);
 
   const lengthDistributionData = [

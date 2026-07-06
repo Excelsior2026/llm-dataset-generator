@@ -29,7 +29,7 @@ export interface LoggerOptions {
 export class EnhancedLogger {
   private static instance: EnhancedLogger;
   private logs: LogEntry[] = [];
-  private readonly maxLogs: number;
+  private maxLogs: number;
   private level: LogLevel;
   private jsonOutput: boolean;
   private correlationId?: string;
@@ -174,4 +174,3 @@ export class EnhancedLogger {
 }
 
 export const logger = EnhancedLogger.getInstance();
-export { LogLevel };

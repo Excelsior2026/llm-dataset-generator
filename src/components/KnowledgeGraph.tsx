@@ -11,9 +11,9 @@ function computeLayout(
   nodes: SubtopicNode[],
   edges: DependencyEdge[]
 ): { x: number; y: number }[] {
-  const positions: { x: number; y: number }[] = nodes.map((_, i) => {
+  const positions: { x: number; y: number }[] = nodes.map((node, i) => {
     const angle = (2 * Math.PI * i) / nodes.length - Math.PI / 2;
-    const radius = 180 + (nodes[i].level || 0) * 40;
+    const radius = 180 + (node.level || 0) * 40;
     return { x: 200 + radius * Math.cos(angle), y: 150 + radius * Math.sin(angle) };
   });
 
@@ -24,16 +24,18 @@ function computeLayout(
     // Repulsion between all nodes
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
-        const dx = positions[j].x - positions[i].x;
-        const dy = positions[j].y - positions[i].y;
+        const pi = positions[i]!;
+        const pj = positions[j]!;
+        const dx = pj.x - pi.x;
+        const dy = pj.y - pi.y;
         const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
         const force = 3000 / (dist * dist);
         const fx = (dx / dist) * force;
         const fy = (dy / dist) * force;
-        forces[i].fx -= fx;
-        forces[i].fy -= fy;
-        forces[j].fx += fx;
-        forces[j].fy += fy;
+        forces[i]!.fx -= fx;
+        forces[i]!.fy -= fy;
+        forces[j]!.fx += fx;
+        forces[j]!.fy += fy;
       }
     }
 
@@ -43,20 +45,22 @@ function computeLayout(
       const toIdx = nodes.findIndex((n) => n.id === edge.to);
       if (fromIdx === -1 || toIdx === -1) continue;
 
-      const dx = positions[toIdx].x - positions[fromIdx].x;
-      const dy = positions[toIdx].y - positions[fromIdx].y;
+      const pFrom = positions[fromIdx]!;
+      const pTo = positions[toIdx]!;
+      const dx = pTo.x - pFrom.x;
+      const dy = pTo.y - pFrom.y;
       const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
       const force = dist / 30;
-      forces[toIdx].fx -= (dx / dist) * force;
-      forces[toIdx].fy -= (dy / dist) * force;
-      forces[fromIdx].fx += (dx / dist) * force;
-      forces[fromIdx].fy += (dy / dist) * force;
+      forces[toIdx]!.fx -= (dx / dist) * force;
+      forces[toIdx]!.fy -= (dy / dist) * force;
+      forces[fromIdx]!.fx += (dx / dist) * force;
+      forces[fromIdx]!.fy += (dy / dist) * force;
     }
 
     // Apply forces with damping
     for (let i = 0; i < nodes.length; i++) {
-      positions[i].x += forces[i].fx * 0.1;
-      positions[i].y += forces[i].fy * 0.1;
+      positions[i]!.x += forces[i]!.fx * 0.1;
+      positions[i]!.y += forces[i]!.fy * 0.1;
     }
   }
 

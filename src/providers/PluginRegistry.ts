@@ -77,11 +77,11 @@ export async function loadProviderPlugins(): Promise<void> {
   
   registry.register({
     name: 'gemini',
-    createProvider: (config) => new GeminiProvider(config),
+    createProvider: (config) => new GeminiProvider(config.apiKey || '', config.model),
     isAvailable: async (config) => {
       if (!config.apiKey || config.apiKey === 'MY_GEMINI_API_KEY') return false;
       try {
-        const provider = new GeminiProvider(config);
+        const provider = new GeminiProvider(config.apiKey, config.model);
         return await provider.isAvailable();
       } catch {
         return false;
@@ -97,10 +97,10 @@ export async function loadProviderPlugins(): Promise<void> {
 
   registry.register({
     name: 'ollama',
-    createProvider: (config) => new OllamaProvider(config),
+    createProvider: (config) => new OllamaProvider(config.baseUrl || 'http://localhost:11434', config.model),
     isAvailable: async (config) => {
       try {
-        const provider = new OllamaProvider(config);
+        const provider = new OllamaProvider(config.baseUrl || 'http://localhost:11434', config.model);
         return await provider.isAvailable();
       } catch {
         return false;
@@ -116,10 +116,10 @@ export async function loadProviderPlugins(): Promise<void> {
 
   registry.register({
     name: 'llamacpp',
-    createProvider: (config) => new LlamaCppProvider(config),
+    createProvider: (config) => new LlamaCppProvider(config.baseUrl || 'http://localhost:8080', config.model),
     isAvailable: async (config) => {
       try {
-        const provider = new LlamaCppProvider(config);
+        const provider = new LlamaCppProvider(config.baseUrl || 'http://localhost:8080', config.model);
         return await provider.isAvailable();
       } catch {
         return false;

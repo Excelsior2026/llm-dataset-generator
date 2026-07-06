@@ -98,17 +98,17 @@ describe('Logger', () => {
     logger.info('Test info');
     const logs = logger.getLogs('info');
     assert.strictEqual(logs.length, 1);
-    assert.strictEqual(logs[0].level, 'info');
-    assert.strictEqual(logs[0].message, 'Test info');
+    assert.strictEqual(logs[0]?.level, 'info');
+    assert.strictEqual(logs[0]?.message, 'Test info');
   });
 
   it('should log error messages', () => {
     logger.error('Test error', new Error('Test error details'));
     const logs = logger.getLogs('error');
     assert.strictEqual(logs.length, 1);
-    assert.strictEqual(logs[0].level, 'error');
-    assert.strictEqual(logs[0].message, 'Test error');
-    assert(logs[0].error instanceof Error);
+    assert.strictEqual(logs[0]?.level, 'error');
+    assert.strictEqual(logs[0]?.message, 'Test error');
+    assert(logs[0]?.error instanceof Error);
   });
 
   it('should filter logs by level', () => {
@@ -176,33 +176,45 @@ describe('Memoizer', () => {
     it('should return a valid schema for alpaca format', () => {
       const schema = getSchemaForFormat('alpaca');
       assert.strictEqual(schema.type, 'OBJECT');
-      assert(schema.properties.items.type, 'ARRAY');
-      assert('instruction' in schema.properties.items.items.properties);
-      assert('input' in schema.properties.items.items.properties);
-      assert('output' in schema.properties.items.items.properties);
+      assert.strictEqual(schema.properties.items.type, 'ARRAY');
+      const alpaca = schema.properties.items.items.properties.alpaca;
+      assert(alpaca, 'alpaca sub-schema should exist');
+      assert('instruction' in alpaca.properties);
+      assert('input' in alpaca.properties);
+      assert('output' in alpaca.properties);
+      assert(schema.properties.items.items.required.includes('alpaca'));
     });
-    
+
     it('should return a valid schema for sharegpt format', () => {
       const schema = getSchemaForFormat('sharegpt');
       assert.strictEqual(schema.type, 'OBJECT');
-      assert(schema.properties.items.type, 'ARRAY');
-      assert('messages' in schema.properties.items.items.properties);
+      assert.strictEqual(schema.properties.items.type, 'ARRAY');
+      const sharegpt = schema.properties.items.items.properties.sharegpt;
+      assert(sharegpt, 'sharegpt sub-schema should exist');
+      assert('messages' in sharegpt.properties);
+      assert(schema.properties.items.items.required.includes('sharegpt'));
     });
-    
+
     it('should return a valid schema for qa format', () => {
       const schema = getSchemaForFormat('qa');
       assert.strictEqual(schema.type, 'OBJECT');
-      assert(schema.properties.items.type, 'ARRAY');
-      assert('question' in schema.properties.items.items.properties);
-      assert('answer' in schema.properties.items.items.properties);
+      assert.strictEqual(schema.properties.items.type, 'ARRAY');
+      const qa = schema.properties.items.items.properties.qa;
+      assert(qa, 'qa sub-schema should exist');
+      assert('question' in qa.properties);
+      assert('answer' in qa.properties);
+      assert(schema.properties.items.items.required.includes('qa'));
     });
-    
+
     it('should return a valid schema for raw format', () => {
       const schema = getSchemaForFormat('raw');
       assert.strictEqual(schema.type, 'OBJECT');
-      assert(schema.properties.items.type, 'ARRAY');
-      assert('title' in schema.properties.items.items.properties);
-      assert('text' in schema.properties.items.items.properties);
+      assert.strictEqual(schema.properties.items.type, 'ARRAY');
+      const raw = schema.properties.items.items.properties.raw;
+      assert(raw, 'raw sub-schema should exist');
+      assert('title' in raw.properties);
+      assert('text' in raw.properties);
+      assert(schema.properties.items.items.required.includes('raw'));
     });
     
     it('should return a default schema for unknown format', () => {
