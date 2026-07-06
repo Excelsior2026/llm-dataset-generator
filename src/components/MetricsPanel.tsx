@@ -5,8 +5,8 @@
 
 import React from "react";
 import { DatasetItem } from "../types";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from "recharts";
-import { ShieldCheck, Cpu, MessageSquareCode, Award, Hash, ArrowUpDown } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { Cpu } from "lucide-react";
 
 interface MetricsPanelProps {
   items: DatasetItem[];
@@ -102,27 +102,6 @@ export default function MetricsPanel({ items }: MetricsPanelProps) {
     { range: "3000+ Chars", count: lengthBins[4] }
   ];
 
-  // Quality heuristic score
-  let dataDiversityTag = "Basic Synthesis";
-  let tagColor = "bg-slate-100 text-slate-800";
-  if (uniqueDensity > 45 && totalItems > 5) {
-    dataDiversityTag = "High Entropy (Outstanding)";
-    tagColor = "bg-indigo-50 text-indigo-700 border border-indigo-100";
-  } else if (uniqueDensity > 30 && totalItems > 2) {
-    dataDiversityTag = "Standard Balanced Entropy";
-    tagColor = "bg-emerald-50 text-emerald-700 border border-emerald-100";
-  }
-
-  // Format dataset breakdown pie chart
-  const formatCounts: Record<string, number> = {};
-  items.forEach(itm => {
-    formatCounts[itm.format] = (formatCounts[itm.format] || 0) + 1;
-  });
-  const formatData = Object.keys(formatCounts).map((key, i) => ({
-    name: key.toUpperCase(),
-    value: formatCounts[key],
-    color: ["#4f46e5", "#10b981", "#f59e0b", "#64748b"][i % 4]
-  }));
 
   return (
     <div id="metrics-panel" className="bg-white border border-slate-200 rounded-xl shadow-xs p-5 space-y-6">

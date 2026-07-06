@@ -2,7 +2,6 @@ import { ModelProvider, ProviderConfig, ModelFunctionConfig } from "./types";
 import { OllamaProvider } from "./OllamaProvider";
 import { LlamaCppProvider } from "./LlamaCppProvider";
 import { GeminiProvider } from "./GeminiProvider";
-import { logger } from "../utils/index";
 
 export function createProvider(config: ModelFunctionConfig): ModelProvider {
   switch (config.provider) {

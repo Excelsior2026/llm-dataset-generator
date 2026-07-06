@@ -77,7 +77,7 @@ app.get("/api/generate/stream", async (req: Request, res: Response) => {
   res.flushHeaders();
 
   try {
-    const { topic, size = "10", format = "alpaca", temperature = "0.7", tone = "explanatory", complexity = "intermediate", redTeam, primaryTopic, secondaryTopic } = req.query as Record<string, string>;
+    const { topic, size = "10", format = "alpaca", temperature = "0.7", tone = "explanatory", complexity = "intermediate", redTeam, secondaryTopic } = req.query as Record<string, string>;
 
     if (!topic || topic.trim() === "") {
       sendSSEEvent(res, "error", { error: "Missing required field 'topic'" });
@@ -571,7 +571,7 @@ ${critiques.filter((c: any) => !c.isValid).map((c: any) => `Item Index ${c.index
  */
 app.post("/api/generate-more", async (req: Request, res: Response) => {
   try {
-    const { topic, researchSummary, format, count = 2, tone = "explanatory", complexity = "intermediate", existingPrompts = [] } = req.body;
+    const { researchSummary, format, count = 2, tone = "explanatory", complexity = "intermediate", existingPrompts = [] } = req.body;
 
     if (!researchSummary) {
       res.status(400).json({ error: "Missing required field 'researchSummary'" });
@@ -804,8 +804,6 @@ app.post("/api/self-play", async (req: Request, res: Response) => {
     const config = parseModelConfig({ modelConfig });
     const scoringProvider = createProvider(config.scoring);
     const genProvider = createProvider(config.generation);
-    const format = items[0]?.format || "alpaca";
-
     const improvedItems = [...items];
 
     for (let cycle = 0; cycle < Math.min(cycles, 5); cycle++) {

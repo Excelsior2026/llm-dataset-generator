@@ -4,11 +4,11 @@
  */
 
 import React, { useState, useMemo } from "react";
-import { DatasetItem, DatasetFormat, ConversationTreeNode, DPOPair } from "../types";
-import { 
-  Download, Copy, ClipboardCheck, Trash2, Edit3, PlusCircle, Check, 
-  X, Sparkles, Filter, ChevronDown, ChevronUp, CopyIcon, Layers, Eye, RefreshCw, FileText, Upload, Loader,
-  GitBranch, Brain, SortAsc, TreePine, ArrowUpDown, FileJson2
+import { DatasetItem, DatasetFormat, ConversationTreeNode } from "../types";
+import {
+  Download, Copy, Trash2, Edit3, PlusCircle, Check,
+  X, Sparkles, Filter, ChevronDown, ChevronUp, Layers, RefreshCw, FileText, Upload, Loader,
+  GitBranch, Brain, SortAsc, TreePine, ArrowUpDown
 } from "lucide-react";
 
 interface DatasetViewerProps {
@@ -88,7 +88,6 @@ export default function DatasetViewer({
 
   // DPO export state
   const [exportingDPO, setExportingDPO] = useState(false);
-  const [dpoResult, setDPOResult] = useState<DPOPair[] | null>(null);
 
   // Complexity-sorted items
   const sortedItems = useMemo(() => {
@@ -96,8 +95,6 @@ export default function DatasetViewer({
     const order: Record<string, number> = { novice: 0, intermediate: 1, expert: 2 };
     return [...items].sort((a, b) => (order[a.metadata?.complexity] ?? 0) - (order[b.metadata?.complexity] ?? 0));
   }, [items, sortByComplexity]);
-
-  const displayItems = sortedItems;
 
   // DPO export handler
   const handleExportDPO = async () => {
@@ -111,7 +108,6 @@ export default function DatasetViewer({
       });
       const data = await res.json();
       if (res.ok && data.pairs) {
-        setDPOResult(data.pairs);
         const blob = new Blob([JSON.stringify(data.pairs, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -401,8 +397,8 @@ export default function DatasetViewer({
     }
   };
 
-  // SEARCH AND FILTERING
-  const filteredItems = items.filter(item => {
+  // SEARCH AND FILTERING (applied on top of complexity sorting)
+  const filteredItems = sortedItems.filter(item => {
     // Subtopic filter
     if (selectedSubtopic !== "all" && item.topic !== selectedSubtopic) {
       return false;

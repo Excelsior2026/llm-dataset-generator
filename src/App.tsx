@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback } from "react";
-import { DatasetGenerationConfig, DatasetItem, SearchResultSummary, APIResponse, ConversationTreeNode } from "./types";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { DatasetGenerationConfig, DatasetItem, SearchResultSummary, ConversationTreeNode } from "./types";
 import ConfigPanel from "./components/ConfigPanel";
 import ResearchSources from "./components/ResearchSources";
 import MetricsPanel from "./components/MetricsPanel";
 import DatasetViewer from "./components/DatasetViewer";
-import { Sparkles, Terminal, AlertTriangle, ArrowRight, Github, RefreshCw, Layers, Save, FolderOpen, Trash2 } from "lucide-react";
-import { saveItems, loadItems, saveSummary, loadSummary, saveConfig, loadConfig, saveNamedDataset, loadAllDatasets, deleteNamedDataset, clearCurrentSession, SavedDataset } from "./utils/persistence";
+import { Terminal, AlertTriangle, Save, FolderOpen, Trash2 } from "lucide-react";
+import { saveItems, loadItems, loadItemsAsync, saveSummary, loadSummary, loadSummaryAsync, saveConfig, loadConfig, saveNamedDataset, loadAllDatasets, deleteNamedDataset, clearCurrentSession, SavedDataset } from "./utils/persistence";
 import { computeAllScores } from "./utils/index";
 
 export default function App() {
@@ -42,8 +42,28 @@ export default function App() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveDatasetName, setSaveDatasetName] = useState("");
 
+  // Hydrate persisted state from IndexedDB (the primary store) after mount.
+  // Until hydration finishes, skip auto-persist so the initial empty state
+  // can't clobber a previously saved session.
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [loadedItems, loadedSummary] = await Promise.all([loadItemsAsync(), loadSummaryAsync()]);
+        if (!cancelled) {
+          setItems(prev => (prev.length === 0 && loadedItems.length > 0 ? loadedItems : prev));
+          setResearchSummary(prev => prev ?? loadedSummary);
+        }
+      } finally {
+        hydratedRef.current = true;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // Auto-persist items and summary on change
-  useEffect(() => { saveItems(items); }, [items]);
+  useEffect(() => { if (hydratedRef.current) saveItems(items); }, [items]);
   useEffect(() => { if (researchSummary) saveSummary(researchSummary); }, [researchSummary]);
   useEffect(() => { saveConfig(config); }, [config]);
 

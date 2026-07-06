@@ -73,17 +73,6 @@ async function idbDelete(key: string): Promise<void> {
   }
 }
 
-function isLocalStorageAvailable(): boolean {
-  try {
-    const key = "__test__";
-    localStorage.setItem(key, "1");
-    localStorage.removeItem(key);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function localStorageFallbackSet(key: string, value: any): boolean {
   try {
     const serialized = JSON.stringify(value);
@@ -111,20 +100,38 @@ export function loadItems(): DatasetItem[] {
   if (memoryCache[STORAGE_KEYS.ITEMS]) {
     return memoryCache[STORAGE_KEYS.ITEMS];
   }
-  // Attempt IndexedDB first, then localStorage fallback
-  const cached = (async () => {
-    const fromDB = await idbGet(STORAGE_KEYS.ITEMS);
-    if (fromDB) return fromDB;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEYS.ITEMS);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  })();
-  // Return empty immediately; cache will populate from IndexedDB async
-  // App.tsx handles this via its initial state
-  return [];
+  // Synchronous callers can only see the localStorage fallback; the primary
+  // IndexedDB copy is restored via loadItemsAsync() after mount.
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.ITEMS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function loadItemsAsync(): Promise<DatasetItem[]> {
+  if (memoryCache[STORAGE_KEYS.ITEMS]) {
+    return memoryCache[STORAGE_KEYS.ITEMS];
+  }
+  const fromDB = await idbGet(STORAGE_KEYS.ITEMS);
+  if (Array.isArray(fromDB) && fromDB.length > 0) {
+    memoryCache[STORAGE_KEYS.ITEMS] = fromDB;
+    return fromDB;
+  }
+  return loadItems();
+}
+
+export async function loadSummaryAsync(): Promise<SearchResultSummary | null> {
+  if (memoryCache[STORAGE_KEYS.SUMMARY] !== undefined) {
+    return memoryCache[STORAGE_KEYS.SUMMARY];
+  }
+  const fromDB = await idbGet(STORAGE_KEYS.SUMMARY);
+  if (fromDB) {
+    memoryCache[STORAGE_KEYS.SUMMARY] = fromDB;
+    return fromDB;
+  }
+  return loadSummary();
 }
 
 export function saveSummary(summary: SearchResultSummary): void {
@@ -190,10 +197,10 @@ export function saveNamedDataset(name: string, items: DatasetItem[], summary: Se
   } else {
     datasets.push(dataset);
   }
-  const serialized = JSON.stringify(datasets);
-  idbSet(STORAGE_KEYS.SAVED_DATASETS, datasets).catch(() => {
-    localStorageFallbackSet(STORAGE_KEYS.SAVED_DATASETS, datasets);
-  });
+  // localStorage is the source of truth for the synchronous loadAllDatasets();
+  // IndexedDB is kept as a backup for large datasets that exceed the quota.
+  localStorageFallbackSet(STORAGE_KEYS.SAVED_DATASETS, datasets);
+  idbSet(STORAGE_KEYS.SAVED_DATASETS, datasets).catch(() => {});
 }
 
 export function loadAllDatasets(): SavedDataset[] {
@@ -212,10 +219,8 @@ export function loadAllDatasets(): SavedDataset[] {
 export function deleteNamedDataset(name: string): void {
   const datasets = loadAllDatasets();
   const filtered = datasets.filter((d) => d.name !== name);
-  const serialized = JSON.stringify(filtered);
-  idbSet(STORAGE_KEYS.SAVED_DATASETS, filtered).catch(() => {
-    localStorageFallbackSet(STORAGE_KEYS.SAVED_DATASETS, filtered);
-  });
+  localStorageFallbackSet(STORAGE_KEYS.SAVED_DATASETS, filtered);
+  idbSet(STORAGE_KEYS.SAVED_DATASETS, filtered).catch(() => {});
 }
 
 export function clearCurrentSession(): void {

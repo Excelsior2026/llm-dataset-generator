@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { DatasetGenerationConfig, DatasetFormat, ProviderType, ModelFunctionConfig } from "../types";
-import { Settings, Sliders, Play, RotateCcw, HelpCircle, FileJson, MessageSquare, HelpCircleIcon, Layers, ChevronRight, Cpu } from "lucide-react";
+import { Sliders, Play, HelpCircle, FileJson, MessageSquare, Layers, Cpu } from "lucide-react";
 
 interface ConfigPanelProps {
   config: DatasetGenerationConfig;

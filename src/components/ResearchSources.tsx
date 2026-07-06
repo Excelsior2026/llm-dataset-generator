@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { SearchResultSummary } from "../types";
-import { Search, Globe, ChevronDown, ChevronUp, BookOpen, Layers } from "lucide-react";
+import { Globe, ChevronDown, ChevronUp, BookOpen, Layers } from "lucide-react";
 import KnowledgeGraph from "./KnowledgeGraph";
 
 interface ResearchSourcesProps {

@@ -40,7 +40,7 @@ export interface ItemMapping {
   };
 }
 
-export function mapItemToFormat(item: any, format: string, id: string, topic: string): ItemMapping {
+export function mapItemToFormat(item: any, format: string, id: string, _topic: string): ItemMapping {
   const itemTopic = item.topic || "General Concepts";
   const metadata = item.metadata || {
     reasoning: "No reasoning provided",
