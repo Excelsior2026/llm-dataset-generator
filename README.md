@@ -1,5 +1,7 @@
 # LLM Dataset Generator
 
+_A BagelTech project._
+
 A local-first LLM training dataset generator with multi-provider model gateway and Electron desktop app.
 
 ## Features
