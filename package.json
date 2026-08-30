@@ -5,7 +5,7 @@
   "description": "Local-first LLM training dataset generator with multi-provider model gateway and Electron desktop app",
   "type": "module",
   "main": "main.js",
-  "author": "TrainEngine.ai",
+  "author": "BagelTech (TrainEngine.ai)",
   "license": "Apache-2.0",
   "scripts": {
     "dev": "tsx server.ts",
