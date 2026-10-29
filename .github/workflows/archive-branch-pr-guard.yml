@@ -1,0 +1,29 @@
+name: Archive branch PR guard
+
+# Archive refs are historical evidence, not merge candidates.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions: {}
+
+jobs:
+  reject-archive-head:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Reject PRs sourced from archival history
+        shell: bash
+        env:
+          SOURCE_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          case "$SOURCE_REF" in
+            archive/*)
+              echo "::error title=Archived branch is not active development::Archive refs cannot be used as PR heads. Re-implement on a new authorized branch from main following independent review and human approval."
+              exit 1
+              ;;
+            *)
+              echo "PR source is not an archived ref."
+              ;;
+          esac
