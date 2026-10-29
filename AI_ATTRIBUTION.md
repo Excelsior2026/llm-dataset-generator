@@ -76,3 +76,8 @@ Where multiple models participate, list each model and its role.
 ## 5. Agent instruction
 
 Before creating a commit, PR, or other attributable GitHub artifact, read this file and comply with it. This policy is intended to be consumed by all current and future AI tools operating in the repository.
+
+
+## 6. Development evidence retention and branch preservation
+
+Before merging, closing, deleting, force-updating, or cleaning up branches, read and obey [DEVELOPMENT_EVIDENCE_RETENTION.md](DEVELOPMENT_EVIDENCE_RETENTION.md). No source branch with unique, unarchived history may be deleted. Preserve authentic PR review, agent session provenance, and original commit references. Do not upload confidential raw sessions into the repository. Human approval and an independently verifiable archive gate are mandatory before deletion. This policy does not itself configure GitHub branch protections.
