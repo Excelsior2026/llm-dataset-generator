@@ -1,0 +1,10 @@
+$ gtimeout 300s npm install --package-lock-only --offline --no-audit --no-fund  # attempt 3
+npm error code EALLOWREMOTE
+npm error Fetching packages of type "remote" have been disabled
+npm error Refusing to fetch "https://registry.npmjs.org/@tailwindcss/oxide-wasm32-wasi/-/oxide-wasm32-wasi-4.3.0.tgz"
+npm error A complete log of this run can be found in: /Users/temporary/.npm/_logs/2026-11-26T17_33_06_798Z-debug-0.log
+exit_code=1
+$ git status --porcelain=v1
+ M package.json
+ M src/utils/logger.ts
+$ grep -n compression package-lock.json | head

@@ -1,0 +1,78 @@
+## FINAL: dev server, HTTP 200, screenshots (PORT=3104)
+$ PORT=3104 gtimeout 150s npm run dev > docs/ui-remediation/evidence/final-dev-server.log 2>&1 &
+server_pid=72665
+ready_after_attempts=9 ready=yes last_http_code=200
+$ curl -sS -D docs/ui-remediation/evidence/final-http-root-headers.txt -o docs/ui-remediation/evidence/final-http-root-body.html -w "%{http_code}" http://127.0.0.1:3104/
+200
+curl_exit=0
+--- response headers ---
+HTTP/1.1 200 OK
+X-Powered-By: Express
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 99
+X-RateLimit-Reset: 1795714725109
+Vary: Origin, Accept-Encoding
+Content-Type: text/html
+Cache-Control: no-cache
+Etag: W/"247-8yWO+AhkWtiIsy6sAjecePNbkoM"
+Date: Thu, 26 Nov 2026 17:37:45 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+--- body first 20 lines ---
+<!doctype html>
+<html lang="en">
+  <head>
+    <script type="module">import { injectIntoGlobalHook } from "/@react-refresh";
+injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => (type) => type;</script>
+
+    <script type="module" src="/@vite/client"></script>
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TrainEngine.ai — LLM Dataset Generator</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
+$ "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu --no-first-run --hide-scrollbars --window-size=1440,900 --virtual-time-budget=6000 --screenshot=docs/ui-remediation/evidence/screenshot-1440x900.png http://localhost:3104
+[72810:12571357:1126/093747.545168:ERROR:ui/display/mac/cv_display_link_mac.mm:191] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[72810:12571357:1126/093747.546400:ERROR:ui/display/mac/cv_display_link_mac.mm:191] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[72810:12571357:1126/093747.546588:ERROR:ui/display/mac/cv_display_link_mac.mm:191] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[72810:12571357:1126/093747.609387:ERROR:ui/display/mac/cv_display_link_mac.mm:191] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+Trying to load the allocator multiple times. This is *not* supported.
+[72810:12571357:1126/093748.247863:ERROR:ui/display/mac/cv_display_link_mac.mm:191] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[72810:12571357:1126/093748.257357:ERROR:ui/display/mac/cv_display_link_mac.mm:191] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[72810:12571357:1126/093748.257827:ERROR:ui/display/mac/cv_display_link_mac.mm:191] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+5851 bytes written to file docs/ui-remediation/evidence/screenshot-1440x900.png
+chrome_desktop_exit=0
+$ "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu --no-first-run --hide-scrollbars --window-size=375,812 --virtual-time-budget=6000 --screenshot=docs/ui-remediation/evidence/screenshot-375x812.png http://localhost:3104
+[72864:12572011:1126/093756.534094:ERROR:ui/display/mac/cv_display_link_mac.mm:191] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[72864:12572011:1126/093756.534978:ERROR:ui/display/mac/cv_display_link_mac.mm:191] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[72864:12572011:1126/093756.535198:ERROR:ui/display/mac/cv_display_link_mac.mm:191] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[72864:12572011:1126/093756.643616:ERROR:ui/display/mac/cv_display_link_mac.mm:191] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+Trying to load the allocator multiple times. This is *not* supported.
+[72864:12572011:1126/093757.022800:ERROR:ui/display/mac/cv_display_link_mac.mm:191] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[72864:12572011:1126/093757.026088:ERROR:ui/display/mac/cv_display_link_mac.mm:191] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[72864:12572011:1126/093757.043409:ERROR:ui/display/mac/cv_display_link_mac.mm:191] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+2538 bytes written to file docs/ui-remediation/evidence/screenshot-375x812.png
+Teardown watchdog expired; recording dump and terminating.
+[1126/093807.920046:WARNING:third_party/crashpad/crashpad/util/process/process_memory_mac.cc:94] mach_vm_read(0x7ff7b3015000, 0x2000): (os/kern) invalid address (1)
+chrome_mobile_exit=2
+$ ls -lh screenshots
+-rw-r--r--@ 1 temporary  staff   5.7K Nov 26 09:37 docs/ui-remediation/evidence/screenshot-1440x900.png
+-rw-r--r--@ 1 temporary  staff   2.5K Nov 26 09:37 docs/ui-remediation/evidence/screenshot-375x812.png
+$ sips -g pixelWidth -g pixelHeight screenshots
+/Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/docs/ui-remediation/evidence/screenshot-1440x900.png
+  pixelWidth: 1440
+  pixelHeight: 900
+/Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/docs/ui-remediation/evidence/screenshot-375x812.png
+  pixelWidth: 375
+  pixelHeight: 812
+$ cleanup listener TCP 3104

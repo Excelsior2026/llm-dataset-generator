@@ -1,0 +1,82 @@
+npm notice run llm-dataset-generator@1.0.0 dev
+npm notice run tsx server.ts
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+[INFO] 2026-11-26T17:37:41.867Z - Server running on http://127.0.0.1:3104
+Server running on http://127.0.0.1:3104
+[INFO] 2026-11-26T17:37:42.094Z - [mwxu58zx] GET /
+9:37:45 AM [vite] (client) page reload docs/ui-remediation/evidence/final-http-root-body.html
+[INFO] 2026-11-26T17:37:45.096Z - [mwxu5bbc] GET /
+9:37:46 AM [vite] (client) page reload docs/ui-remediation/evidence/final-http-root-body.html
+[INFO] 2026-11-26T17:37:48.712Z - [mwxu5e3s] GET /
+[INFO] 2026-11-26T17:37:49.159Z - [mwxu5eg4] GET /@vite/client
+[INFO] 2026-11-26T17:37:49.167Z - [mwxu5egf] GET /src/main.tsx
+[INFO] 2026-11-26T17:37:49.178Z - [mwxu5egp] GET /@react-refresh
+[INFO] 2026-11-26T17:37:49.197Z - [mwxu5eh9] GET /node_modules/.vite/deps/react_jsx-dev-runtime.js
+[INFO] 2026-11-26T17:37:49.205Z - [mwxu5ehh] GET /node_modules/.vite/deps/react.js
+[INFO] 2026-11-26T17:37:49.209Z - [mwxu5ehl] GET /node_modules/.vite/deps/react-dom_client.js
+[INFO] 2026-11-26T17:37:49.217Z - [mwxu5eht] GET /src/index.css
+[INFO] 2026-11-26T17:37:49.218Z - [mwxu5ehu] GET /node_modules/.vite/deps/chunk-QGYBNTC6.js
+[INFO] 2026-11-26T17:37:49.220Z - [mwxu5ehw] GET /src/App.tsx
+[INFO] 2026-11-26T17:37:49.225Z - [mwxu5ei1] GET /node_modules/.vite/deps/chunk-DC5AMYBS.js
+[INFO] 2026-11-26T17:37:49.236Z - [mwxu5eic] GET /node_modules/vite/dist/client/env.mjs
+[INFO] 2026-11-26T17:37:49.245Z - [mwxu5eil] GET /src/components/ConfigPanel.tsx
+[INFO] 2026-11-26T17:37:49.247Z - [mwxu5ein] GET /src/components/ResearchSources.tsx
+[INFO] 2026-11-26T17:37:49.251Z - [mwxu5eir] GET /src/components/MetricsPanel.tsx
+[INFO] 2026-11-26T17:37:49.260Z - [mwxu5ej0] GET /src/components/DatasetViewer.tsx
+[INFO] 2026-11-26T17:37:49.273Z - [mwxu5ejd] GET /node_modules/.vite/deps/lucide-react.js
+[INFO] 2026-11-26T17:37:49.287Z - [mwxu5ejr] GET /src/utils/persistence.ts
+[INFO] 2026-11-26T17:37:49.289Z - [mwxu5ejt] GET /src/utils/index.ts
+[INFO] 2026-11-26T17:37:49.345Z - [mwxu5eld] GET /src/components/KnowledgeGraph.tsx
+[INFO] 2026-11-26T17:37:49.389Z - [mwxu5eml] GET /node_modules/.vite/deps/recharts.js
+[INFO] 2026-11-26T17:37:49.406Z - [mwxu5en2] GET /src/utils/logger.ts
+[INFO] 2026-11-26T17:37:49.408Z - [mwxu5en4] GET /src/utils/advanced.ts
+[INFO] 2026-11-26T17:37:49.412Z - [mwxu5en8] GET /src/utils/cache.ts
+[INFO] 2026-11-26T17:37:49.488Z - [mwxu5epc] GET /src/utils/validation.ts
+[INFO] 2026-11-26T17:37:49.489Z - [mwxu5epd] GET /src/services/CacheService.ts
+[INFO] 2026-11-26T17:37:49.518Z - [mwxu5eq6] GET /src/services/GenerationService.ts
+[INFO] 2026-11-26T17:37:49.534Z - [mwxu5eqm] GET /src/services/MetricsService.ts
+[INFO] 2026-11-26T17:37:49.545Z - [mwxu5eqx] GET /src/services/ProviderService.ts
+[INFO] 2026-11-26T17:37:49.546Z - [mwxu5eqy] GET /src/services/QualityService.ts
+[INFO] 2026-11-26T17:37:49.547Z - [mwxu5eqz] GET /@id/__vite-browser-external:events
+[INFO] 2026-11-26T17:37:49.548Z - [mwxu5er0] GET /@id/__vite-browser-external:crypto
+[INFO] 2026-11-26T17:37:49.554Z - [mwxu5er6] GET /node_modules/.vite/deps/chunk-NBO6YEPT.js
+[INFO] 2026-11-26T17:37:49.555Z - [mwxu5er7] GET /src/providers/types.ts
+[INFO] 2026-11-26T17:37:49.675Z - [mwxu5euh] GET /favicon.ico
+[INFO] 2026-11-26T17:37:57.152Z - [mwxu5km8] GET /
+[INFO] 2026-11-26T17:37:57.282Z - [mwxu5kpu] GET /@vite/client
+[INFO] 2026-11-26T17:37:57.289Z - [mwxu5kq1] GET /src/main.tsx
+[INFO] 2026-11-26T17:37:57.290Z - [mwxu5kq2] GET /@react-refresh
+[INFO] 2026-11-26T17:37:57.296Z - [mwxu5kq7] GET /node_modules/.vite/deps/react_jsx-dev-runtime.js
+[INFO] 2026-11-26T17:37:57.299Z - [mwxu5kqb] GET /node_modules/.vite/deps/react.js
+[INFO] 2026-11-26T17:37:57.301Z - [mwxu5kqd] GET /src/index.css
+[INFO] 2026-11-26T17:37:57.302Z - [mwxu5kqe] GET /node_modules/.vite/deps/react-dom_client.js
+[INFO] 2026-11-26T17:37:57.308Z - [mwxu5kqk] GET /node_modules/vite/dist/client/env.mjs
+[INFO] 2026-11-26T17:37:57.323Z - [mwxu5kqz] GET /node_modules/.vite/deps/chunk-QGYBNTC6.js
+[INFO] 2026-11-26T17:37:57.324Z - [mwxu5kr0] GET /src/App.tsx
+[INFO] 2026-11-26T17:37:57.328Z - [mwxu5kr4] GET /node_modules/.vite/deps/chunk-DC5AMYBS.js
+[INFO] 2026-11-26T17:37:57.359Z - [mwxu5krz] GET /src/components/ConfigPanel.tsx
+[INFO] 2026-11-26T17:37:57.360Z - [mwxu5ks0] GET /src/components/ResearchSources.tsx
+[INFO] 2026-11-26T17:37:57.361Z - [mwxu5ks1] GET /src/components/MetricsPanel.tsx
+[INFO] 2026-11-26T17:37:57.362Z - [mwxu5ks2] GET /src/components/DatasetViewer.tsx
+[INFO] 2026-11-26T17:37:57.367Z - [mwxu5ks7] GET /node_modules/.vite/deps/lucide-react.js
+[INFO] 2026-11-26T17:37:57.438Z - [mwxu5ku6] GET /src/utils/persistence.ts
+[INFO] 2026-11-26T17:37:57.439Z - [mwxu5ku7] GET /src/utils/index.ts
+[INFO] 2026-11-26T17:37:57.441Z - [mwxu5ku9] GET /src/components/KnowledgeGraph.tsx
+[INFO] 2026-11-26T17:37:57.466Z - [mwxu5kuy] GET /node_modules/.vite/deps/recharts.js
+[INFO] 2026-11-26T17:37:57.476Z - [mwxu5kv8] GET /src/utils/logger.ts
+[INFO] 2026-11-26T17:37:57.477Z - [mwxu5kv9] GET /src/utils/advanced.ts
+[INFO] 2026-11-26T17:37:57.478Z - [mwxu5kva] GET /src/utils/cache.ts
+[INFO] 2026-11-26T17:37:57.479Z - [mwxu5kvb] GET /src/utils/validation.ts
+[INFO] 2026-11-26T17:37:57.491Z - [mwxu5kvn] GET /src/services/CacheService.ts
+[INFO] 2026-11-26T17:37:57.491Z - [mwxu5kvn] GET /src/services/GenerationService.ts
+[INFO] 2026-11-26T17:37:57.493Z - [mwxu5kvp] GET /src/services/MetricsService.ts
+[INFO] 2026-11-26T17:37:57.494Z - [mwxu5kvq] GET /src/services/ProviderService.ts
+[INFO] 2026-11-26T17:37:57.501Z - [mwxu5kvx] GET /src/services/QualityService.ts
+[INFO] 2026-11-26T17:37:57.505Z - [mwxu5kw1] GET /node_modules/.vite/deps/chunk-NBO6YEPT.js
+[INFO] 2026-11-26T17:37:57.507Z - [mwxu5kw3] GET /@id/__vite-browser-external:events
+[INFO] 2026-11-26T17:37:57.510Z - [mwxu5kw6] GET /@id/__vite-browser-external:crypto
+[INFO] 2026-11-26T17:37:57.510Z - [mwxu5kw6] GET /src/providers/types.ts
+[INFO] 2026-11-26T17:37:57.723Z - [mwxu5l23] GET /favicon.ico
+
+Received SIGTERM, shutting down...
+[INFO] 2026-11-26T17:38:09.156Z - [mwxu5l23] Server closed

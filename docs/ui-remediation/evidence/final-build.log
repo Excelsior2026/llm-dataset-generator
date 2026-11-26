@@ -1,0 +1,31 @@
+$ gtimeout 180s npm run build
+npm notice run llm-dataset-generator@1.0.0 build
+npm notice run vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs
+vite v6.4.2 building for production...
+transforming...
+[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/src/utils/cache.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+[plugin vite:resolve] Module "events" has been externalized for browser compatibility, imported by "/Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/src/utils/advanced.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+[plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by "/Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/src/utils/advanced.ts". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+✓ 2355 modules transformed.
+✗ Build failed in 14.17s
+error during build:
+src/utils/advanced.ts (6:9): "EventEmitter" is not exported by "__vite-browser-external", imported by "src/utils/advanced.ts".
+file: /Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/src/utils/advanced.ts:6:9
+
+4:  */
+5: 
+6: import { EventEmitter } from 'events';
+            ^
+7: import { createHash } from 'crypto';
+
+    at getRollupError (file:///Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/rollup/dist/es/shared/parseAst.js:406:41)
+    at error (file:///Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/rollup/dist/es/shared/parseAst.js:402:42)
+    at Module.error (file:///Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/rollup/dist/es/shared/node-entry.js:17390:16)
+    at Module.traceVariable (file:///Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/rollup/dist/es/shared/node-entry.js:17823:29)
+    at ModuleScope.findVariable (file:///Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/rollup/dist/es/shared/node-entry.js:15413:39)
+    at ChildScope.findVariable (file:///Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/rollup/dist/es/shared/node-entry.js:5682:38)
+    at Identifier.bind (file:///Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/rollup/dist/es/shared/node-entry.js:5449:40)
+    at ClassDeclaration.bind (file:///Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/rollup/dist/es/shared/node-entry.js:2831:23)
+    at ExportNamedDeclaration.bind (file:///Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/rollup/dist/es/shared/node-entry.js:13045:27)
+    at Program.bind (file:///Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/rollup/dist/es/shared/node-entry.js:2827:28)
+exit_code=1

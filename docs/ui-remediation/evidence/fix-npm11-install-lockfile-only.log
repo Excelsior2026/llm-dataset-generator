@@ -1,0 +1,26 @@
+$ gtimeout 300s npx --yes npm@11.11.0 install --package-lock-only --no-audit --no-fund  # deliberate regeneration via npm 11 due to npm 12 allow-remote=none
+npm notice run llm-dataset-generator@1.0.0 npx
+npm notice run 'npm' install --package-lock-only --no-audit --no-fund
+npm warn Unknown env config "global-ignore-file". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+up to date in 7s
+exit_code=0
+$ git status --porcelain=v1
+ M package-lock.json
+ M package.json
+ M src/utils/logger.ts
+$ git diff --stat
+ package-lock.json   | 1472 ++++++++++++++++++++++++++++++++++++++++++++++++++-
+ package.json        |    2 +
+ src/utils/logger.ts |    3 +-
+ 3 files changed, 1448 insertions(+), 29 deletions(-)
+$ grep -n compression package-lock.json | head
+15:        "compression": "^1.8.2",
+26:        "@types/compression": "^1.8.1",
+2399:    "node_modules/@types/compression": {
+2401:      "resolved": "https://registry.npmjs.org/@types/compression/-/compression-1.8.1.tgz",
+3814:    "node_modules/compression": {
+3816:      "resolved": "https://registry.npmjs.org/compression/-/compression-1.8.2.tgz",
+3837:    "node_modules/compression/node_modules/debug": {
+3846:    "node_modules/compression/node_modules/ms": {
+3852:    "node_modules/compression/node_modules/negotiator": {

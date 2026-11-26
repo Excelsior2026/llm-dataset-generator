@@ -1,0 +1,47 @@
+$ gtimeout 180s npm run format:check
+npm notice run llm-dataset-generator@1.0.0 format:check
+npm notice run prettier --check "**/*.{ts,tsx,json,md}"
+Checking formatting...
+[warn] .eslintrc.json
+[warn] .github/pull_request_template.md
+[warn] electron-builder.json
+[warn] ENHANCEMENTS_STATUS.md
+[warn] IMPLEMENTATION_COMPLETE.md
+[warn] IMPLEMENTATION_SUMMARY.md
+[warn] IMPROVEMENTS.md
+[warn] package.json
+[warn] QUICKSTART.md
+[warn] REVIEW.md
+[warn] SERVER_INTEGRATION_GUIDE.md
+[warn] server.ts
+[warn] src/App.tsx
+[warn] src/components/ConfigPanel.tsx
+[warn] src/components/DatasetViewer.tsx
+[warn] src/components/KnowledgeGraph.tsx
+[warn] src/components/MetricsPanel.tsx
+[warn] src/components/ResearchSources.tsx
+[warn] src/main.tsx
+[warn] src/providers/GeminiProvider.ts
+[warn] src/providers/LlamaCppProvider.ts
+[warn] src/providers/OllamaProvider.ts
+[warn] src/providers/PluginRegistry.ts
+[warn] src/providers/ProviderFactory.ts
+[warn] src/providers/types.ts
+[warn] src/services/CacheService.ts
+[warn] src/services/GenerationService.ts
+[warn] src/services/MetricsService.ts
+[warn] src/services/ProviderService.ts
+[warn] src/services/QualityService.ts
+[warn] src/tests/index.ts
+[warn] src/types.ts
+[warn] src/utils/advanced.ts
+[warn] src/utils/cache.ts
+[warn] src/utils/index.ts
+[warn] src/utils/logger.ts
+[warn] src/utils/persistence.ts
+[warn] src/utils/services.ts
+[warn] src/utils/validation.ts
+[warn] tsconfig.json
+[warn] vite.config.ts
+[warn] Code style issues found in 41 files. Run Prettier with --write to fix.
+exit_code=1

@@ -1,0 +1,10 @@
+## Dev server + HTTP attempt 3 (PORT=3103)
+server_pid=72268
+ready_after_attempts=10 ready=yes last_http_code=200
+--- dev server log ---
+npm notice run llm-dataset-generator@1.0.0 dev
+npm notice run tsx server.ts
+◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+[INFO] 2026-11-26T17:36:41.529Z - Server running on http://127.0.0.1:3103
+Server running on http://127.0.0.1:3103
+[INFO] 2026-11-26T17:36:41.867Z - [mwxu3yiy] GET /

@@ -1,0 +1,20 @@
+npm notice run llm-dataset-generator@1.0.0 dev
+npm notice run tsx server.ts
+
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [TransformError]: Transform failed with 1 error:
+/Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/src/services/GenerationService.ts:394:9: ERROR: Multiple exports with the same name "GenerationService"
+    at failureErrorWithLog (/Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/tsx/node_modules/esbuild/lib/main.js:1748:15)
+    at /Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/tsx/node_modules/esbuild/lib/main.js:1017:50
+    at responseCallbacks.<computed> (/Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/tsx/node_modules/esbuild/lib/main.js:884:9)
+    at handleIncomingPacket (/Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/tsx/node_modules/esbuild/lib/main.js:939:12)
+    at Socket.readFromStdout (/Users/temporary/ui-ux-review/worktrees/wave1/Excelsior2026__llm-dataset-generator/node_modules/tsx/node_modules/esbuild/lib/main.js:862:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+
+Node.js v22.23.4

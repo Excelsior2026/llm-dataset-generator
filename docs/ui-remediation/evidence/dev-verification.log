@@ -1,0 +1,11 @@
+## Dev server + HTTP + screenshots (PORT=3101)
+$ PORT=3101 gtimeout 120s npm run dev > docs/ui-remediation/evidence/dev-server.log 2>&1 &
+server_pid=70680
+ready_after_attempts=20 ready=no last_http_code=000
+$ curl -sS -D docs/ui-remediation/evidence/http-root-headers.txt -o docs/ui-remediation/evidence/http-root-body.html -w "%{http_code}" http://127.0.0.1:3101/
+curl: (7) Failed to connect to 127.0.0.1:3101 after 0 ms: Could not connect to server
+000
+curl_exit=7
+--- response headers ---
+--- body first 20 lines ---
+head: docs/ui-remediation/evidence/http-root-body.html: No such file or directory
