@@ -391,4 +391,4 @@ ${auditResult.refinementIndices.map(i => `Item ${i} (critique: ${auditResult.cri
   }
 }
 
-export { GenerationService };
+export default GenerationService;

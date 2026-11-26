@@ -174,4 +174,3 @@ export class EnhancedLogger {
 }
 
 export const logger = EnhancedLogger.getInstance();
-export { LogLevel };
